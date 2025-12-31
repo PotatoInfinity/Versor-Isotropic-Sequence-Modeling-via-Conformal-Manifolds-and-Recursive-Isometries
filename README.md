@@ -9,7 +9,7 @@
 
 ---
 
-## **1. Executive Summary: The "Flat Earth" Problem in AI**
+## **1. The "Flat Earth" Problem in AI**
 
 Since the "Attention is All You Need" paper in 2017, Artificial Intelligence has lived on a **"Flat Earth."** Modern models like Llama 4 treat human language as a list of independent points in a flat, high-dimensional space. 
 
@@ -20,24 +20,24 @@ We are "lifting" Llama 4 into a **Conformal Manifold.** By using **Geometric Alg
 
 ---
 
-## **2. The Core Concept: Language as a 5D Manifold**
+## **2. Language as a 5D Manifold**
 
 We use **Conformal Geometric Algebra ($Cl_{4,1}$)**. Imagine a 5D space where points, lines, circles, and spheres are the basic "alphabet."
 
-### **2.1 Blades: The "Shapes" of Meaning**
+### **2.1 Blades**
 In standard AI, the word "Apple" is a point. In Geo-Llama 4, it is a **Blade**.
 *   **The Point-Blade:** Specific facts (e.g., "Paris").
 *   **The Sphere-Blade:** Broad categories (e.g., "Capital Cities").
 *   **The Intersection:** To check if "Paris" is a "Capital City," the model doesn't guess. It performs a **Geometric Inner Product**. If the result is zero, the point is inside the sphere. **Logic becomes a physical collision check.**
 
-### **2.2 Rotors: The "Physics" of Analogy**
+### **2.2 Rotors**
 How does the model know that *"King is to Man as Queen is to Woman"*?
 In our manifold, this is a **Rotation**. The relationship "Royalty" is a **Rotor** (a 5D twist). When you apply the "Royalty Rotor" to the "Man" shape, it physically lands on the "King" shape.
 *   **Significance:** Analogy is no longer a statistical guess; it is a **symmetry of the manifold.**
 
 ---
 
-## **3. The Breakthroughs: GPA and the O(1) Context Rotor**
+## **3. GPA and the O(1) Context Rotor**
 
 ### **3.1 GPA (Geometric Product Attention)**
 Standard Llama 4 uses "Dot-Product Attention" (measuring how similar two words are). 
