@@ -35,7 +35,7 @@ Bằng cách tận dụng hệ thống **Cấp (Grades)**, mô hình tự thân 
 
 ---
 
-## **3. GPA: Cơ chế Chú ý Tích Hình học**
+## **3. Cơ chế Chú ý Tích Hình học**
 
 Chúng tôi tái định nghĩa cơ chế Chú ý. Thay vì tích vô hướng (Dot-Product) truyền thống ($\langle Q, K \rangle$), chúng tôi sử dụng toàn bộ **Tích Hình học Clifford**:
 
