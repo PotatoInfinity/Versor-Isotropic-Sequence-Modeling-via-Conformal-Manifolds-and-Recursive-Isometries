@@ -6,6 +6,9 @@
 **Subject:** Geometric Deep Learning, High-Performance Computing, Structural Linguistics  
 
 ---
+<img width="2598" height="1406" alt="image" src="https://github.com/user-attachments/assets/3fc0b60a-0a20-47f1-82e3-171688c2944e" />
+
+---
 
 ## **Abstract**
 Contemporary Large Language Models (LLMs) are fundamentally constrained by their reliance on high-dimensional Euclidean embeddings and the quadratic complexity of the Attention mechanism. These "Flat-AI" architectures treat tokens as isolated coordinates in $\mathbb{R}^n$, failing to capture the intrinsic topological hierarchy of human language. We present **Geo-Llama**, a transformative architecture that re-parameterizes the Llama 4 (MoE) transformer into a **$Cl_{4,1}$ Conformal Geometric Algebra (CGA)** framework. By lifting neural activations into a 5D Minkowski-signature manifold, we replace statistical similarity with **topological intersection** and **Lie-group rotations**. This paper details the **Geometric Product Attention (GPA)**, the **$O(1)$ Recursive Rotor Accumulator**, and the silicon-level **GAPU (Geometric Algebra Processing Unit)**, marking the transition from stochastic approximation to structural certainty.
