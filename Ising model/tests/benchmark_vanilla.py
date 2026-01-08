@@ -7,8 +7,8 @@ import os
 import sys
 import numpy as np
 import time
-torch.manual_seed(24)
-np.random.seed(24) # For reproducibility
+#torch.manual_seed(24)
+#np.random.seed(24) # For reproducibility
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from geo_transformer.core import conformal_lift
