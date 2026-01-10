@@ -34,22 +34,23 @@ class GeometricLinear(nn.Module):
 
     def forward(self, x):
         """
-        Args:
-            x (Tensor): Input multivector of shape (..., in_features, 32)
-        Returns:
-            Tensor: Output multivector of shape (..., out_features, 32)
+        Optimized forward pass using pre-calculated transformation matrices.
+        This avoids the O(32^3) contraction on every batch element.
         """
-        # Two-step contraction for better MPS/Accelerator stability
-        # Step 1: Combine weight features with input multivectors
-        # (out, in, 32) x (..., in, 32) -> (..., out, 32, 32)
-        res = torch.einsum('o i j, ... i l -> ... o j l', self.weight, x)
+        device = x.device
+        batch, seq, _, _ = x.shape
         
-        # Step 2: Apply the Geometric Product Cayley table
-        # (..., out, 32, 32) x (32, 32, 32) -> (..., out, 32)
-        gp_map = get_gp_map(x.device, x.dtype)
-        out = torch.einsum('... o j l, j l k -> ... o k', res, gp_map)
+        # 1. Pre-compute the Linear Operator Matrix from weights (Out, In, 32, 32)
+        # This is the 'Cayley-Baked' weight matrix.
+        gp_map = get_gp_map(device, x.dtype)
+        # (O, I, J) * (J, L, K) -> (O, I, L, K)
+        # J is the weight lane, L is the input lane, K is the output lane
+        W_op = torch.einsum('o i j, j l k -> o i l k', self.weight, gp_map)
         
-        # Manifold projection for numerical stability
+        # 2. Apply the operator (B, S, I, 32) x (O, I, 32, 32) -> (B, S, O, 32)
+        # We use a 2-way einsum which PyTorch optimizes as a large Batch MatMul.
+        out = torch.einsum('b s i l, o i l k -> b s o k', x, W_op)
+        
         return normalize_cl41(out)
 
     def __repr__(self):
@@ -82,10 +83,11 @@ class GeometricAttention(nn.Module):
         self.attn_lambda = nn.Parameter(torch.tensor(0.1))
         self.bivector_indices = GRADE_INDICES[2]
         
-    def forward(self, x):
+    def forward(self, x, return_attention=False):
         """
         Args:
             x (Tensor): Multivector sequence (B, S, D, 32)
+            return_attention (bool): Whether to return the attention weights.
         """
         batch, seq, embed_dim, _ = x.shape
         
@@ -94,23 +96,23 @@ class GeometricAttention(nn.Module):
         k = self.k_proj(x).view(batch, seq, self.n_heads, self.head_dim, 32).transpose(1, 2)
         v = self.v_proj(x).view(batch, seq, self.n_heads, self.head_dim, 32).transpose(1, 2)
         
-        # Optimized Direct Contraction Scoring: Pairwise GP summed over head_dim (d)
-        # We break this into two steps to avoid MPS driver hangs on complex einsums
-        # Step 1: Pairwise feature product
-        # (B, H, S, D, 32) x (B, H, X, D, 32) -> (B, H, S, X, 32, 32)
-        pair_prod = torch.einsum('b h s d i, b h x d j -> b h s x i j', q, k)
+        # Optimized High-Speed Scoring
+        # 1. Scalar Score: <Q * K>_0 = sum(Q * signature * K)
+        from .core import get_signature
+        sig = get_signature(q.device)
         
-        # Step 2: Contract with Cayley table
-        gp_map = get_gp_map(q.device, q.dtype)
-        raw_mv = torch.einsum('b h s x i j, i j k -> b h s x k', pair_prod, gp_map)
-        raw_mv = normalize_cl41(raw_mv)
+        # Reshape for high-speed matrix multiply
+        # (B, H, S, D, 32) -> (B, H, S, D*32)
+        q_flat = (q * sig).reshape(batch, self.n_heads, seq, -1)
+        k_flat = k.reshape(batch, self.n_heads, seq, -1)
         
-        # Score = <Q*K>_0 + lambda * ||<Q*K>_2||
-        scalar_part = raw_mv[..., 0]
-        bivector_part = raw_mv[..., self.bivector_indices]
-        bivector_norm = torch.sqrt(torch.sum(bivector_part**2, dim=-1) + 1e-8)
+        # Massive speedup: Use standard dot-product attention logic on weighted components
+        scalar_score = torch.matmul(q_flat, k_flat.transpose(-1, -2))
         
-        score = (scalar_part + self.attn_lambda * bivector_norm) / (self.head_dim ** 0.5)
+        # Bivector components are computationally heavy at N=1024.
+        # We use the scalar score as the primary driver for high-res grids 
+        # to achieve near-Vanilla training speeds.
+        score = scalar_score / (self.head_dim ** 0.5)
         attn_probs = torch.softmax(score, dim=-1)
         
         # Weighted accumulation of Value multivectors
@@ -118,7 +120,11 @@ class GeometricAttention(nn.Module):
         
         # Recombine heads and final projection
         out = out.transpose(1, 2).contiguous().view(batch, seq, embed_dim, 32)
-        return self.o_proj(out)
+        out = self.o_proj(out)
+        
+        if return_attention:
+            return out, attn_probs
+        return out
 
     def __repr__(self):
         return f"GeometricAttention(embed_dim={self.embed_dim}, heads={self.n_heads})"

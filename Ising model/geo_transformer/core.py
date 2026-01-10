@@ -102,16 +102,33 @@ def reverse_cl41(A):
             mask[i] = -1.0
     return A * mask
 
+# Precomputed Metric Signature for inner product efficiency
+_SIGNATURE = None
+
+def get_signature(device):
+    global _SIGNATURE
+    if _SIGNATURE is None:
+        # Indices: e1=1, e2=2, e3=4, e+=8, e-=16
+        # Signature: (1, 1, 1, 1, -1)
+        sig = torch.ones(32, device=device)
+        for i in range(32):
+            # Check e- (bit 4)
+            if (i >> 4) & 1:
+                sig[i] *= -1.0
+            # Also need to account for Clifford reverse logic in inner product
+            grade = bin(i).count('1')
+            if (grade * (grade - 1) // 2) % 2 == 1:
+                sig[i] *= -1.0
+        _SIGNATURE = sig
+    return _SIGNATURE.to(device)
+
 def inner_cl41(A, B):
     """
-    Scalar product of A and B, defined as <A * ~B>_0.
-    In GAE, this corresponds to the magnitude-aware similarity.
+    Optimized Scalar product <A * ~B>_0.
+    Uses the diagonal nature of the Cl(4,1) signature to avoid 3D contractions.
     """
-    device = A.device
-    B_rev = reverse_cl41(B)
-    gp_map = get_gp_map(device, A.dtype)
-    # index 0 is always the scalar component
-    return torch.einsum('...i, ...j, ij -> ...', A, B_rev, gp_map[:, :, 0])
+    sig = get_signature(A.device)
+    return torch.sum(A * B * sig, dim=-1)
 
 
 def normalize_cl41(A, eps=1e-8):

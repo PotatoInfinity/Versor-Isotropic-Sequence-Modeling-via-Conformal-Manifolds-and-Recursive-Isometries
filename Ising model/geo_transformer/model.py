@@ -22,7 +22,7 @@ class GeometricBlock(nn.Module):
     A single Transformer block specialized for GA.
     Includes GPA (Geometric Product Attention) and a Geometric MLP.
     """
-    def __init__(self, embed_dim, n_heads):
+    def __init__(self, embed_dim, n_heads, expansion=4):
         super().__init__()
         self.attn = GeometricAttention(embed_dim, n_heads)
         # LayerNorm is applied across the dimension and multivector lanes
@@ -30,19 +30,27 @@ class GeometricBlock(nn.Module):
         self.ln2 = nn.LayerNorm([embed_dim, 32])
         
         self.mlp = nn.Sequential(
-            GeometricLinear(embed_dim, 4 * embed_dim),
-            GeometricActivation(),
-            GeometricLinear(4 * embed_dim, embed_dim)
+            GeometricLinear(embed_dim, expansion * embed_dim),
+            nn.Tanh(), # WINNING ARCHITECTURE
+            GeometricLinear(expansion * embed_dim, embed_dim)
         )
         
-    def forward(self, x):
+    def forward(self, x, return_attention=False):
         # Residual Connection + Attention
-        x = x + self.attn(self.ln1(x))
+        if return_attention:
+            attn_out, probs = self.attn(self.ln1(x), return_attention=True)
+            x = x + attn_out
+        else:
+            x = x + self.attn(self.ln1(x))
+        
         x = normalize_cl41(x) # Manifold projection
         
         # Residual Connection + MLP
         x = x + self.mlp(self.ln2(x))
         x = normalize_cl41(x)
+        
+        if return_attention:
+            return x, probs
         return x
 
 class RecursiveRotorAccumulator(nn.Module):
@@ -80,11 +88,11 @@ class GeometricTransformer(nn.Module):
     Full Geometric Transformer for Conformal Geometric Algebra Cl(4,1).
     Equipped with Geometric Blocks and optional Stabilized Rotor Pooling.
     """
-    def __init__(self, embed_dim, n_heads, n_layers, n_classes, use_rotor_pool=True):
+    def __init__(self, embed_dim, n_heads, n_layers, n_classes, expansion=4, use_rotor_pool=True):
         super().__init__()
         self.use_rotor_pool = use_rotor_pool
         self.blocks = nn.ModuleList([
-            GeometricBlock(embed_dim, n_heads) for _ in range(n_layers)
+            GeometricBlock(embed_dim, n_heads, expansion=expansion) for _ in range(n_layers)
         ])
         
         if self.use_rotor_pool:
@@ -93,10 +101,15 @@ class GeometricTransformer(nn.Module):
         # Final classifier maps the multivector state to class logits
         self.classifier = nn.Linear(embed_dim * 32, n_classes)
         
-    def forward(self, x):
+    def forward(self, x, return_attention=False):
         # Process through geometric layers
+        all_attn = []
         for block in self.blocks:
-            x = block(x)
+            if return_attention:
+                x, attn = block(x, return_attention=True)
+                all_attn.append(attn)
+            else:
+                x = block(x)
             
         if self.use_rotor_pool:
             # Recursive Rotor Accumulation (Global State Persistence)
@@ -106,5 +119,21 @@ class GeometricTransformer(nn.Module):
             x = x.mean(dim=1)
         
         # Flatten multivector lanes for the linear classifier
-        x = x.view(x.shape[0], -1)
-        return self.classifier(x)
+        logits = self.classifier(x.view(x.shape[0], -1))
+        
+        if return_attention:
+            return logits, all_attn
+        return logits
+
+def get_grade_energies(x):
+    """
+    Returns the L2 norm for each Clifford grade in the multivector x.
+    x shape: (..., 32)
+    """
+    from .core import GRADE_INDICES
+    energies = {}
+    for grade, indices in GRADE_INDICES.items():
+        # norm of components in this grade
+        grade_data = x[..., indices]
+        energies[grade] = torch.norm(grade_data, p=2, dim=-1).mean().item()
+    return energies
