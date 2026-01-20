@@ -1,9 +1,7 @@
-***
-
 # Geo-Llama: Structural Intelligence via $Cl_{4,1}$ Conformal Manifolds
 
-**Date:** January 20, 2026
-**Authors:** Trương Minh Huy, Edward George Hirst
+**Date:** January 20, 2026                     
+**Authors:** Trương Minh Huy, Edward George Hirst               
 **Subject:** Geometric Deep Learning, Protein Folding, Neuro-Symbolic AI
 
 ![Version](https://img.shields.io/badge/version-0.1.0--alpha-blue) ![Tech](https://img.shields.io/badge/Tech-PyTorch_%7C_Triton-orange) ![Domain](https://img.shields.io/badge/Domain-BioGeometry-green) ![License](https://img.shields.io/badge/License-GPL_v3.0-red)
