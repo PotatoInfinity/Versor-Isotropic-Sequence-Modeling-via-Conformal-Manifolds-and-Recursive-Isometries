@@ -18,7 +18,7 @@ from collections import defaultdict
 import copy
 
 # =================================================================
-# 0. SYSTEM PROFILES & TUNING
+# ARCHITECTURAL CONFIGURATION AND HYPERPARAMETER TUNING
 # =================================================================
 # Set IS_CLUSTER to True for A100/H100/L40S clusters to maximize throughput.
 IS_CLUSTER = True 
@@ -40,7 +40,7 @@ N_REPEATS_DEFAULT = 5 if IS_CLUSTER else 3
 ALLOW_TF32 = True
 
 # =================================================================
-# 1. CONFIGURATION AND ARGUMENT PARSING
+# EXPERIMENTAL CONFIGURATION AND INTERFACE
 # =================================================================
 
 parser = argparse.ArgumentParser(description='Dyck-N Systematic Sweep: Geometric vs. Standard')
@@ -79,7 +79,7 @@ def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 # =================================================================
-# 2. CONFORMAL GEOMETRIC ALGEBRA (Cl(4,1)) KERNEL
+# CONFORMAL GEOMETRIC ALGEBRA KERNEL (Cl(4,1))
 # =================================================================
 
 GP_MAP_CACHE = {}
@@ -129,7 +129,7 @@ def manifold_normalization(A: torch.Tensor, eps: float = 1e-5):
     return A / denom
 
 # =================================================================
-# 3. NEURAL NETWORK ARCHITECTURES
+# MODEL ARCHITECTURES: GEOMETRIC VS EUCLIDEAN BASELINES
 # =================================================================
 
 class GeometricLinear(nn.Module):
@@ -217,7 +217,7 @@ class Standard_Transformer(nn.Module):
         return self.head(x.mean(dim=1))
 
 # =================================================================
-# 4. CURRICULUM UTILITIES
+# CURRICULUM LEARNING AND DATA SYNTHESIS UTILITIES
 # =================================================================
 
 def transfer_weights(source_model, target_model):
@@ -269,7 +269,7 @@ def generate_dataset(size: int, n_samples: int, vocab_size=5):
     return X_t.to(DEVICE), Y_t.to(DEVICE)
 
 # =================================================================
-# 5. BENCHMARK EXECUTION ENGINE
+# BENCHMARK EVALUATION ENGINE
 # =================================================================
 
 def train_one_config(model, size, epochs=40, seed=42, model_type='cga'):

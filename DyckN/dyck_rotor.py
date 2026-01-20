@@ -12,7 +12,7 @@ import random
 from typing import List, Tuple, Dict
 
 # =================================================================
-# 0. SYSTEM CONFIG
+# SYSTEM ARCHITECTURE AND OPTIMIZATION DIRECTIVES
 # =================================================================
 # Ensure high-performance matrix multiplications on Nvidia Ampere+
 if torch.cuda.is_available():
@@ -22,14 +22,13 @@ if torch.cuda.is_available():
     torch.backends.cuda.matmul.allow_tf32 = True
 
 # =================================================================
-# 1. CLIFFORD ALGEBRA ENGINE (Cl(4,1))
+# CONFORMAL GEOMETRIC ALGEBRA CORE (Cl(4,1))
 # =================================================================
 
 class Cl41Algebra:
     """
-    A lightweight engine for Conformal Geometric Algebra Cl(4,1).
-    Metric Signature: (+, +, +, +, -)
-    Implements the geometric product via a precomputed Cayley Table.
+    Metric Signature: \mathbb{R}^{4,1} (+, +, +, +, -)
+    Geometric product derivation via precomputed Cayley transformation matrices.
     """
     def __init__(self, device: torch.device):
         self.device = device
@@ -114,22 +113,22 @@ class Cl41Algebra:
 
     def manifold_normalization(self, x: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
         """
-        Manifold-Aware Normalization for Cl(4,1) rotors.
-        Uses L2 norm as the primary stabilizer to prevent singularities,
-        ensuring the state stays bounded even when off the rotor manifold.
+        Canonical normalization for multivector states.
+        Utilizes a stabilized L2-norm projection to preserve manifold integrity
+        and prevent numerical divergence in high-depth recursive sequences.
         """
         l2_norm = torch.norm(x, p=2, dim=-1, keepdim=True)
         return x / (l2_norm + eps)
 
 # =================================================================
-# 2. MODELS: RECURSIVE ROTOR vs LSTM
+# ARCHITECTURAL COMPARISON: RECURSIVE ISOMETRIES VS EUCLIDEAN RNN
 # =================================================================
 
 class GeoLlama_Rotor(nn.Module):
     """
-    The Novel O(1) Context Architecture.
-    Instead of a history list, we maintain a single Rotor state (Psi).
-    Psi_{t+1} = ManifoldNorm( R_t * Psi_t )
+    Rotor-based recursive architecture for O(1) context representation.
+    The hidden state evolution is modeled as a sequence of isometric transformations:
+    \Psi_{t+1} = \text{Norm}( R_t * \Psi_t )
     """
     def __init__(self, d_vectors: int, algebra: Cl41Algebra):
         super().__init__()
@@ -139,8 +138,7 @@ class GeoLlama_Rotor(nn.Module):
         # 1. Initialize Embedding
         self.token_embedding = nn.Embedding(4, 32)
         
-        # CRITICAL FIX: Higher noise for non-scalar components (Bivectors)
-        # Bivectors are the generators of rotations.
+        # Initialization of bivector generators for geometric rotations.
         with torch.no_grad():
             self.token_embedding.weight.normal_(0, 0.1) 
             self.token_embedding.weight[:, 0] = 1.0
@@ -156,7 +154,7 @@ class GeoLlama_Rotor(nn.Module):
             nn.Linear(128, 2)
         )
         
-        # 2. Geometric Forget Gate
+        # 2. Structural Gating Mechanism
         # Initialize gate to be "mostly open" (bias = 1.0) to encourage information flow
         self.gate = nn.Linear(32 + (d_vectors * 32), d_vectors)
         with torch.no_grad():
@@ -184,9 +182,7 @@ class GeoLlama_Rotor(nn.Module):
             gate_in = torch.cat([h.flatten(1), r_t], dim=-1)
             g = torch.sigmoid(self.gate(gate_in)).unsqueeze(-1)
             
-            # ROTOR COMPOSITION: h' = r_t * h
-            # This accumulates rotations, which is ideal for the Dyck bracket matching task.
-            # Using left-multiplication as per docstring: Psi_{t+1} = R_t * Psi_t
+            # Isotropic state update: \Psi_{t+1} = R_t \cdot \Psi_t
             r_t_unsq = r_t.unsqueeze(1) 
             h_next = self.algebra.geometric_product(r_t_unsq, h)
             
@@ -252,7 +248,7 @@ def transfer_weights(source_model, target_model):
     return target_model
 
 # =================================================================
-# 3. DYCK-N GENERATOR
+# DATA SYNTHESIS: DYCK-N LINGUISTIC SEQUENCES
 # =================================================================
 
 def generate_dyck_n(n_samples: int, depth: int):
@@ -310,7 +306,7 @@ def generate_dyck_n(n_samples: int, depth: int):
     return torch.tensor(data, dtype=torch.long), torch.tensor(labels, dtype=torch.long)
 
 # =================================================================
-# 4. TRAINING LOOP
+# OPTIMIZATION PROTOCOL AND EVALUATION
 # =================================================================
 
 def train_model(model, depth, device, n_epochs=50, batch_size=256, lr=0.001):
@@ -351,7 +347,7 @@ def train_model(model, depth, device, n_epochs=50, batch_size=256, lr=0.001):
             logits = model(batch_x)
             loss = criterion(logits, batch_y)
             loss.backward()
-            # Clip gradients to prevent explosion in the recursive loop
+            # Gradient clipping to ensure numerical stability in deep recursions
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
             

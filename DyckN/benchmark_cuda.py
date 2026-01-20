@@ -15,7 +15,7 @@ import copy
 import os
 
 # =================================================================
-# 0. CONFIGURATION & UTILITIES
+# EXPERIMENTAL CONFIGURATION AND UTILITIES
 # =================================================================
 
 warnings.filterwarnings("ignore")
@@ -51,7 +51,7 @@ def print_header():
     print(f"{'='*80}\n")
 
 # =================================================================
-# 1. GEOMETRIC ALGEBRA KERNEL (Cl(4,1))
+# CONFORMAL GEOMETRIC ALGEBRA CORE (Cl(4,1))
 # =================================================================
 
 GP_MAP_CACHE = {}
@@ -96,9 +96,9 @@ def get_metric_signature(device):
 
 def manifold_normalization(A: torch.Tensor, eps: float = 1e-6):
     """
-    Manifold Normalization:
-    Keeps multivectors on the group manifold, preventing gradient explosion
-    without destroying the geometric ratio.
+    Manifold-preserving normalization: ensures multivectors remain within 
+    the transformation group, preventing numerical divergence in 
+    isometric sequence modeling.
     """
     sig = get_metric_signature(A.device)
     norm_sq = torch.sum(A * A * sig, dim=-1)
@@ -110,7 +110,7 @@ def manifold_normalization(A: torch.Tensor, eps: float = 1e-6):
     return A / denom
 
 # =================================================================
-# 2. MODEL ARCHITECTURES
+# ARCHITECTURAL IMPLEMENTATIONS: GEOMETRIC VS EUCLIDEAN
 # =================================================================
 
 class GeometricLinear(nn.Module):
@@ -124,7 +124,7 @@ class GeometricLinear(nn.Module):
 
     def forward(self, x):
         gp = get_gp_map(x.device)
-        # Geometric Product via Tensor Contraction
+        # Multivector linear contraction via Geometric Product
         W_op = torch.einsum('oij,jlk->oilk', self.weight, gp)
         out = torch.einsum('bsil,oilk->bsok', x, W_op)
         return manifold_normalization(out)
@@ -221,7 +221,7 @@ class Standard_Transformer(nn.Module):
         return self.head(x.mean(dim=1))
 
 # =================================================================
-# 3. DATA & UTILS
+# DATA SYNTHESIS AND EXPERIMENTAL UTILITIES
 # =================================================================
 
 def generate_dataset(size: int, n_samples: int, vocab_size=5): # vocab_size 5 for Dyck-2 + Pad
@@ -321,7 +321,7 @@ def transfer_weights(source_model, target_model):
     return target_model
 
 # =================================================================
-# 4. TRAINING ENGINE
+# BENCHMARK EVALUATION ENGINE
 # =================================================================
 
 def run_cycle(name, model, size, d_vec, epochs=25, transfer_from=None):
@@ -401,7 +401,7 @@ def run_cycle(name, model, size, d_vec, epochs=25, transfer_from=None):
     return history, history[-1], model
 
 # =================================================================
-# 5. MAIN EXECUTION (THE LADDER)
+# EXPERIMENTAL EXECUTION PROTOCOL (CURRICULUM LADDER)
 # =================================================================
 
 if __name__ == "__main__":
@@ -497,7 +497,7 @@ if __name__ == "__main__":
     print(f"\n[Output] Graph saved to final_benchmark_dyck_ladder.png")
 
     # =================================================================
-    # PART D: COMPUTE KERNEL BENCHMARK
+    # PERFORMANCE ANALYSIS: MULTI-BACKEND KERNEL EVALUATION
     # =================================================================
     # (Kept SAME as BrokenSnake intentionally for kernel speed test)
     try:

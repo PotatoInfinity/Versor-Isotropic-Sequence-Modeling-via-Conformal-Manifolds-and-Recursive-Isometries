@@ -18,29 +18,29 @@ from collections import defaultdict
 import copy
 
 # =================================================================
-# 0. SYSTEM PROFILES & TUNING
+# ARCHITECTURAL CONFIGURATION AND HYPERPARAMETER TUNING
 # =================================================================
 # Set IS_CLUSTER to True for A100/H100/L40S clusters to maximize throughput.
 IS_CLUSTER = True 
 
-# 1. Batch Size Scaling (Scales linearly with available VRAM)
+# 1. Computational Batch Scaling (Linearization relative to VRAM availability)
 B_SMALL   = 256 if IS_CLUSTER else 64   # For grid sizes <= 16
 B_MEDIUM  = 128 if IS_CLUSTER else 16   # For grid sizes <= 28
 B_LARGE   = 64  if IS_CLUSTER else 4    # For grid sizes <= 64
 B_XL      = 16  if IS_CLUSTER else 2    # For grid sizes > 64 (e.g. 128)
 
-# 2. Dataset Capacity (Higher = Higher statistical significance)
+# 2. Dataset Cardinality (Optimized for statistical significance)
 S_SMALL  = 10000 if IS_CLUSTER else 3000 # Samples for small grids
 S_LARGE  = 10000 if IS_CLUSTER else 6000 # Samples for large grids (>= 32)
 
-# 3. Statistical Significance
+# 3. Statistical Confidence Parameters
 N_REPEATS_DEFAULT = 5 if IS_CLUSTER else 3 # Curriculum is more stable, so 5 is plenty
 
-# 4. Hardware Speedup Flags
+# 4. Hardware Acceleration Directives
 ALLOW_TF32 = True # Enable TensorFloat-32 for NVIDIA Ampere/Hopper GPUs
 
 # =================================================================
-# 1. CONFIGURATION AND ARGUMENT PARSING
+# OPTIMIZED GEOMETRIC KERNEL ARCHITECTURE (Cl(4,1))
 # =================================================================
 
 parser = argparse.ArgumentParser(description='Curriculum Systematic Sweep: Geometric vs. Standard Architectures')
@@ -143,7 +143,7 @@ def conformal_projection(grid: torch.Tensor):
     return out
 
 # =================================================================
-# 3. NEURAL NETWORK ARCHITECTURES
+# MODEL ARCHITECTURES: GEOMETRIC VS EUCLIDEAN BASELINES
 # =================================================================
 
 class GeometricLinear(nn.Module):
@@ -229,7 +229,7 @@ class Standard_Transformer(nn.Module):
         return self.head(x.mean(dim=1))
 
 # =================================================================
-# 4. CURRICULUM UTILITIES
+# CURRICULUM LEARNING AND DATA GENERATION UTILITIES
 # =================================================================
 
 def transfer_weights(source_model, target_model):
@@ -275,7 +275,7 @@ def generate_dataset(size: int, n_samples: int, d_vectors: int = 8):
     return X_proj.cpu(), Y_t.cpu(), coords_t.cpu()
 
 # =================================================================
-# 5. BENCHMARK EXECUTION ENGINE
+# BENCHMARK EVALUATION ENGINE
 # =================================================================
 
 def train_one_config(model, size, d_vec, epochs=40, seed=42, model_type='cga'):

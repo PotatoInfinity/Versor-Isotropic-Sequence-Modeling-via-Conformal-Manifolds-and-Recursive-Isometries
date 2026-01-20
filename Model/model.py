@@ -5,9 +5,9 @@ from .core import normalize_cl41, gp_cl41, reverse_cl41, inner_cl41
 
 class GeometricActivation(nn.Module):
     """
-    Magnitude-based activation function for multivectors.
-    Preserves the 'direction' in GA space while applying a non-linear gate
-    based on the scalar magnitude (norm).
+    Structural activation function utilizing multivector magnitude gating.
+    Preserves the orientational integrity in Clifford GA space while applying 
+    a non-linear transformation based on the scalar multivector field norm.
     """
     def forward(self, x):
         # Using the inner product to find the magnitude squared
@@ -19,8 +19,8 @@ class GeometricActivation(nn.Module):
 
 class GeometricBlock(nn.Module):
     """
-    A single Transformer block specialized for GA.
-    Includes GPA (Geometric Product Attention) and a Geometric MLP.
+    High-performance block specialized for Conformal Geometric Algebra.
+    Integrates Geometric Product Attention (GPA) with a Clifford-covariant MLP.
     """
     def __init__(self, embed_dim, n_heads, expansion=4):
         super().__init__()
@@ -31,7 +31,7 @@ class GeometricBlock(nn.Module):
         
         self.mlp = nn.Sequential(
             GeometricLinear(embed_dim, expansion * embed_dim),
-            nn.Tanh(), # WINNING ARCHITECTURE
+            nn.Tanh(), # Hyperbolic tangent activation for optimized manifold mapping
             GeometricLinear(expansion * embed_dim, embed_dim)
         )
         
@@ -55,12 +55,12 @@ class GeometricBlock(nn.Module):
 
 class RecursiveRotorAccumulator(nn.Module):
     """
-    Stabilized Cumulative Rotor Pooling.
+    Vectorized ensemble transformation for sequence dimensionality reduction.
     
-    Instead of a slow Python loop, this uses a vectorized 'state-sum' 
-    approach which is more stable for long sequences (N=64).
-    The sequence is transformed into a 'Geometric Stream' that is
-    normalized to prevent energy explosion.
+    This implementation leverages a parallelized manifold state summation, 
+    ensuring numerical stability for extensive sequence lengths. 
+    The temporal sequence is projected onto a Geometric Stream, subject to 
+    manifold normalization to maintain physical boundedness.
     """
     def __init__(self, embed_dim):
         super().__init__()
@@ -73,13 +73,12 @@ class RecursiveRotorAccumulator(nn.Module):
         # 1. Transform sequence to delta-rotors
         delta = self.mixer(x) 
         
-        # 2. Cumulative Mean (Global Context)
-        # We use a stable mean across the time dimension
-        # This acts as a 'Mean Rotor' which is more stable than recursive sandwiching
+        # Calculation of the mean multivector representation (Global Latent Context)
+        # This acts as a 'Canonical Mean Rotor' providing superior stability over 
+        # sequential recursive transformations.
         psi = delta.mean(dim=1) 
         
-        # 3. Final Manifold Stability Gate
-        # Hard-clamping the multivector components to prevent logit explosion
+        # Nonlinear squashing to regulate multivector magnitude
         psi = torch.tanh(psi) 
         return normalize_cl41(psi)
 

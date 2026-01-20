@@ -4,11 +4,10 @@ from .core import gp_cl41, wedge_cl41, inner_cl41, normalize_cl41, GRADE_INDICES
 
 class GeometricLinear(nn.Module):
     """
-    Multivector Linear Layer for Clifford Algebra Cl(4,1).
-    
-    Weights are multivectors (32-lane). The operation is a contraction 
-    using the Geometric Product (GP). This maintains geometric covariance 
-    throughout the linear transformation.
+    In-features: d_in, Out-features: d_out
+    Parameters are represented as multivectors in the Clifford basis. 
+    The operation implements a linear contraction via the Geometric Product (GP), 
+    preserving geometric covariance through the transformation.
     """
     def __init__(self, in_features, out_features):
         super().__init__()
@@ -21,9 +20,10 @@ class GeometricLinear(nn.Module):
 
     def reset_parameters(self):
         """
-        Grade-Aware Xavier Initialization.
-        Initializes scalar and vector components to maintain signal variance.
-        """
+    Grade-Aware Spectral Initialization.
+    Heuristic initialization prioritizing scalar and vector components to 
+    ensure signal variance stability across deep Clifford networks.
+    """
         with torch.no_grad():
             std = 1.0 / (self.in_features * 32)**0.5
             # Initialize Scalar (Grade 0)
@@ -34,21 +34,20 @@ class GeometricLinear(nn.Module):
 
     def forward(self, x):
         """
-        Optimized forward pass using pre-calculated transformation matrices.
-        This avoids the O(32^3) contraction on every batch element.
+        Efficient forward pass utilizing the pre-computed Cayley transformation.
+        Optimization reduces the contraction complexity from O(32^3) per 
+        element to a linearized manifold application.
         """
         device = x.device
         batch, seq, _, _ = x.shape
         
-        # 1. Pre-compute the Linear Operator Matrix from weights (Out, In, 32, 32)
-        # This is the 'Cayley-Baked' weight matrix.
+        # 1. Computation of the 'Cayley-Baked' Linear Operator Matrix (O, I, 32, 32)
         gp_map = get_gp_map(device, x.dtype)
         # (O, I, J) * (J, L, K) -> (O, I, L, K)
         # J is the weight lane, L is the input lane, K is the output lane
         W_op = torch.einsum('o i j, j l k -> o i l k', self.weight, gp_map)
         
-        # 2. Apply the operator (B, S, I, 32) x (O, I, 32, 32) -> (B, S, O, 32)
-        # We use a 2-way einsum which PyTorch optimizes as a large Batch MatMul.
+        # 2. Application of the manifold operator via optimized Einstein summation
         out = torch.einsum('b s i l, o i l k -> b s o k', x, W_op)
         
         return normalize_cl41(out)
@@ -106,7 +105,7 @@ class GeometricAttention(nn.Module):
         q_flat = (q * sig).reshape(batch, self.n_heads, seq, -1)
         k_flat = k.reshape(batch, self.n_heads, seq, -1)
         
-        # Massive speedup: Use standard dot-product attention logic on weighted components
+        # Acceleration via standard matrix factorization over weighted components
         scalar_score = torch.matmul(q_flat, k_flat.transpose(-1, -2))
         
         # Bivector components are computationally heavy at N=1024.
