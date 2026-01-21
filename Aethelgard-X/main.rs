@@ -20,7 +20,7 @@ fn main() {
 
         match parts.get(0) {
             Some(&"uci") => {
-                println!("id name GeoChess Sentinel V5 (Aethelgard-X)");
+                println!("id name VersorChess Sentinel V5 (Aethelgard-X)");
                 println!("id author Antigravity & User");
                 println!("uciok");
             }

@@ -132,7 +132,7 @@ def manifold_normalization(A: torch.Tensor, eps: float = 1e-5):
 # MODEL ARCHITECTURES: GEOMETRIC VS EUCLIDEAN BASELINES
 # =================================================================
 
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
         self.weight = nn.Parameter(torch.zeros(out_features, in_features, 32))
@@ -147,15 +147,15 @@ class GeometricLinear(nn.Module):
         else: out = torch.einsum('bsil,oilk->bsok', x, W_op)
         return manifold_normalization(out)
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     def __init__(self, d_model, n_heads=2):
         super().__init__()
         self.n_heads = n_heads
         self.d_head = d_model // n_heads
-        self.q_proj = GeometricLinear(d_model, d_model)
-        self.k_proj = GeometricLinear(d_model, d_model)
-        self.v_proj = GeometricLinear(d_model, d_model)
-        self.o_proj = GeometricLinear(d_model, d_model)
+        self.q_proj = VersorLinear(d_model, d_model)
+        self.k_proj = VersorLinear(d_model, d_model)
+        self.v_proj = VersorLinear(d_model, d_model)
+        self.o_proj = VersorLinear(d_model, d_model)
         self.scale = nn.Parameter(torch.tensor(4.0))
 
     def forward(self, x):
@@ -180,15 +180,15 @@ class CGA_Transformer(nn.Module):
         self.pos_emb = nn.Parameter(torch.randn(1, seq_len, d_vectors, 32) * 0.02)
         self.layers = nn.ModuleList([
             nn.ModuleDict({
-                'attn': GeometricAttention(d_vectors),
+                'attn': VersorAttention(d_vectors),
                 'mlp': nn.Sequential(
-                    GeometricLinear(d_vectors, d_vectors*4),
+                    VersorLinear(d_vectors, d_vectors*4),
                     nn.Tanh(),
-                    GeometricLinear(d_vectors*4, d_vectors)
+                    VersorLinear(d_vectors*4, d_vectors)
                 )
             }) for _ in range(n_layers)
         ])
-        self.pool = GeometricLinear(d_vectors, d_vectors)
+        self.pool = VersorLinear(d_vectors, d_vectors)
         self.head = nn.Linear(d_vectors*32, 2)
 
     def forward(self, x):
@@ -337,14 +337,14 @@ def train_one_config(model, size, epochs=40, seed=42, model_type='cga'):
                     o = model(xb)
                 preds.extend(o.argmax(1).cpu().numpy()); trues.extend(yb.cpu().numpy())
         mcc = matthews_corrcoef(trues, preds)
-        print(f"      [Epoch {ep+1:2d}/{epochs}] MCC: {mcc:.3f}", flush=True)
+        print(f"      [Epoch {ep+1:2d}/{epochs}] MCC: {mcc:.3f}")
         
         if mcc > best_mcc:
             best_mcc = mcc
             best_model_state = copy.deepcopy(model.state_dict())
             
         if mcc > 0.999: 
-            print(f"      [Epoch {ep+1:2d}/{epochs}] Converged! (MCC: {mcc:.3f})", flush=True)
+            print(f"      [Epoch {ep+1:2d}/{epochs}] Converged! (MCC: {mcc:.3f})")
             break
         
     model.load_state_dict(best_model_state)
@@ -363,7 +363,7 @@ def save_json(data, filename):
     os.replace(filename + '.tmp', filename)
 
 def run_sweeps():
-    print(f"Starting DyckN Curriculum Sweeps on {GPU_NAME}", flush=True)
+    print(f"Starting DyckN Curriculum Sweeps on {GPU_NAME}")
     data_results, model_results = defaultdict(list), defaultdict(list)
     if os.path.exists(args.outfile):
         try:
@@ -373,16 +373,16 @@ def run_sweeps():
 
     # --- 1. SEQUENCE COMPLEXITY SWEEP (WITH CURRICULUM) ---
     SIZES, D_VEC_FIXED, N_REPEATS, EPOCHS = args.sizes, 8, args.repeats, args.epochs
-    print(f"\n--- CURRICULUM COMPLEXITY SWEEP (D_VEC={D_VEC_FIXED}) ---", flush=True)
+    print(f"\n--- CURRICULUM COMPLEXITY SWEEP (D_VEC={D_VEC_FIXED}) ---")
     
     for r in range(N_REPEATS):
-        print(f"\n--- Trial {r+1}/{N_REPEATS} ---", flush=True)
+        print(f"\n--- Trial {r+1}/{N_REPEATS} ---")
         prev_cga = None
         for size in SIZES:
             if str(size) in data_results and len(data_results[str(size)]) > r:
                 continue
             
-            print(f"  Length: {size}", flush=True)
+            print(f"  Length: {size}")
             cga_m = CGA_Transformer(vocab_size=5, d_vectors=D_VEC_FIXED, n_layers=4, seq_len=size)
             if prev_cga: cga_m = transfer_weights(prev_cga, cga_m)
             
@@ -398,15 +398,15 @@ def run_sweeps():
             s_mcc = train_one_config(std_m, size, epochs=EPOCHS, seed=100+r, model_type='std')
             
             data_results[str(size)].append({'cga': c_mcc, 'std': s_mcc, 'std_dim': std_d})
-            print(f"    MCC: CGA={c_mcc:.3f}, Standard={s_mcc:.3f} (Dim={std_d})", flush=True)
+            print(f"    MCC: CGA={c_mcc:.3f}, Standard={s_mcc:.3f} (Dim={std_d})")
             save_json({'data_sweep': data_results, 'model_sweep': model_results}, args.outfile)
 
     # --- 2. CAPACITY SWEEP ---
     FIXED_SIZE, D_VECS = 64, args.d_vecs
-    print(f"\n--- CAPACITY SWEEP (SIZE={FIXED_SIZE}) ---", flush=True)
+    print(f"\n--- CAPACITY SWEEP (SIZE={FIXED_SIZE}) ---")
     for dv in D_VECS:
         if str(dv) in model_results and len(model_results[str(dv)]) >= N_REPEATS: continue
-        print(f"  D_VEC: {dv}", flush=True)
+        print(f"  D_VEC: {dv}")
         for r in range(N_REPEATS):
             cga_m = CGA_Transformer(vocab_size=5, d_vectors=dv, n_layers=4, seq_len=FIXED_SIZE)
             cga_params = count_parameters(cga_m)
@@ -417,7 +417,7 @@ def run_sweeps():
             s_mcc = train_one_config(std_m, FIXED_SIZE, epochs=EPOCHS, seed=200+r, model_type='std')
             
             model_results[str(dv)].append({'cga': c_mcc, 'std': s_mcc, 'std_dim': std_d})
-            print(f"    Trial {r+1}: CGA={c_mcc:.3f}, Std={s_mcc:.3f}", flush=True)
+            print(f"    Trial {r+1}: CGA={c_mcc:.3f}, Std={s_mcc:.3f}")
             save_json({'data_sweep': data_results, 'model_sweep': model_results}, args.outfile)
 
     plot_results(data_results, model_results)
@@ -450,7 +450,7 @@ def plot_results(data_results, model_results):
     plt.grid(True, alpha=0.3)
     
     plt.tight_layout(); plt.savefig('dyck_sweep_maxpool_plots.png')
-    print("\n[INFO] Sweep visualizations saved to: dyck_sweep_maxpool_plots.png", flush=True)
+    print("\n[INFO] Sweep visualizations saved to: dyck_sweep_maxpool_plots.png")
 
 if __name__ == "__main__":
     run_sweeps()

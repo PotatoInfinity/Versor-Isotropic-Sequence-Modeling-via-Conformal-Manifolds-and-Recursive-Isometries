@@ -1,6 +1,6 @@
-# Geo-Llama Environment Setup
+# Versor Environment Setup
 
-This directory contains the necessary configuration to replicate the Geo-Llama curriculum benchmarks on high-performance compute clusters (A100/H100).
+This directory contains the necessary configuration to replicate the Versor curriculum benchmarks on high-performance compute clusters (A100/H100).
 
 ## 1. Installation
 

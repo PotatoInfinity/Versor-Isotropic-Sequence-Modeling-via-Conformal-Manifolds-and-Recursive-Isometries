@@ -100,7 +100,7 @@ def manifold_normalization(A: torch.Tensor, eps: float = 1e-6):
     ).clamp(min=1.0)
     return A / denom
 
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
         self.weight = nn.Parameter(torch.zeros(out_features, in_features, 32))
@@ -114,15 +114,15 @@ class GeometricLinear(nn.Module):
         out = torch.einsum('bsil,oilk->bsok', x, W_op)
         return manifold_normalization(out)
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     def __init__(self, d_model, n_heads=2):
         super().__init__()
         self.n_heads = n_heads
         self.d_head = d_model // n_heads
-        self.q_proj = GeometricLinear(d_model, d_model)
-        self.k_proj = GeometricLinear(d_model, d_model)
-        self.v_proj = GeometricLinear(d_model, d_model)
-        self.o_proj = GeometricLinear(d_model, d_model)
+        self.q_proj = VersorLinear(d_model, d_model)
+        self.k_proj = VersorLinear(d_model, d_model)
+        self.v_proj = VersorLinear(d_model, d_model)
+        self.o_proj = VersorLinear(d_model, d_model)
         self.scale = nn.Parameter(torch.tensor(4.0))
 
     def forward(self, x):
@@ -148,15 +148,15 @@ class CGA_Transformer(nn.Module):
         self.pos_emb = nn.Parameter(torch.randn(1, seq_len, d_vectors, 32) * 0.02)
         self.layers = nn.ModuleList([
             nn.ModuleDict({
-                'attn': GeometricAttention(d_vectors),
+                'attn': VersorAttention(d_vectors),
                 'mlp': nn.Sequential(
-                    GeometricLinear(d_vectors, d_vectors*4),
+                    VersorLinear(d_vectors, d_vectors*4),
                     nn.Tanh(),
-                    GeometricLinear(d_vectors*4, d_vectors)
+                    VersorLinear(d_vectors*4, d_vectors)
                 )
             }) for _ in range(n_layers)
         ])
-        self.pool = GeometricLinear(d_vectors, d_vectors)
+        self.pool = VersorLinear(d_vectors, d_vectors)
         self.head = nn.Linear(d_vectors*32, 2)
 
     def forward(self, x):
@@ -224,7 +224,7 @@ def generate_dataset(size: int, n_samples: int):
     Y_t = torch.tensor(np.array(Y_list, dtype=np.int64), device=target_dev)
     return X_t, Y_t
 
-def run_training_cycle(model_name: str, model: nn.Module, size: int):
+def run_traininv_c_versorycle(model_name: str, model: nn.Module, size: int):
     n_samples = 4000 if size < 64 else 8000
     X, Y = generate_dataset(size, n_samples)
     dataset = TensorDataset(X, Y)
@@ -292,24 +292,24 @@ if __name__ == "__main__":
     for size in SIZES:
         # GEOMETRIC
         d_vec = 8 if size >= 64 else 4
-        model_geo = CGA_Transformer(vocab_size=VOCAB_SIZE, d_vectors=d_vec, n_layers=4, seq_len=size)
-        hist_geo, mcc_geo = run_training_cycle(f"CGA ({size})", model_geo, size)
+        model_versor = CGA_Transformer(vocab_size=VOCAB_SIZE, d_vectors=d_vec, n_layers=4, seq_len=size)
+        hist_geo, mcc_geo = run_traininv_c_versorycle(f"CGA ({size})", model_versor, size)
         
         # STANDARD
         d_model = 256 if size >= 64 else 128
         model_std = Standard_Transformer(vocab_size=VOCAB_SIZE, d_model=d_model, seq_len=size)
-        hist_std, mcc_std = run_training_cycle(f"Std ({size})", model_std, size)
+        hist_std, mcc_std = run_traininv_c_versorycle(f"Std ({size})", model_std, size)
         
         delta = mcc_geo - mcc_std
         print(f"\r{size:<12} | {mcc_geo:.3f}              | {mcc_std:.3f}              | {delta:+.3f}")
-        results_summary[size] = {'geo': hist_geo, 'std': hist_std}
+        results_summary[size] = {'versor': hist_geo, 'std': hist_std}
         print("-" * 65)
 
     if sns: sns.set_theme(style="whitegrid", context="paper")
     else: plt.style.use('ggplot')
     plt.figure(figsize=(10, 6))
     for size in SIZES:
-        plt.plot(results_summary[size]['geo'], label=f"CGA ({size})", alpha=0.8)
+        plt.plot(results_summary[size]['versor'], label=f"CGA ({size})", alpha=0.8)
         plt.plot(results_summary[size]['std'], label=f"Std ({size})", linestyle='--', alpha=0.5)
     plt.legend()
     plt.savefig("dyck_benchmark_scratch.png", dpi=300)

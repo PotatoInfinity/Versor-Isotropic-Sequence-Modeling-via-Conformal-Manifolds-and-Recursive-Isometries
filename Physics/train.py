@@ -4,7 +4,7 @@ import torch.optim as optim
 import numpy as np
 import time
 from data_gen import generate_gravity_data
-from models import StandardTransformer, GeometricRotorRNN, GraphNetworkSimulator, HamiltonianNN
+from models import StandardTransformer, VersorRotorRNN, GraphNetworkSimulator, HamiltonianNN
 
 def compute_energy(data, mass=1.0, G=1.0):
     """
@@ -82,30 +82,30 @@ def train():
     
     # Init Models
     std_model = StandardTransformer(n_particles=5).to(device)
-    geo_model = GeometricRotorRNN(n_particles=5).to(device)
+    versor_model = VersorRotorRNN(n_particles=5).to(device)
     gns_model = GraphNetworkSimulator(n_particles=5).to(device)
     hnn_model = HamiltonianNN(n_particles=5).to(device) # HNN might be slower due to double backward
     
     loss_fn = nn.MSELoss()
     
     opt_std = optim.Adam(std_model.parameters(), lr=LR)
-    opt_geo = optim.Adam(geo_model.parameters(), lr=LR)
+    opt_versor = optim.Adam(versor_model.parameters(), lr=LR)
     opt_gns = optim.Adam(gns_model.parameters(), lr=LR)
     opt_hnn = optim.Adam(hnn_model.parameters(), lr=LR)
     
     print("\nInitiating Benchmarking Suite: Comparative Analysis of Physic-Informed Architectures")
-    print(f"{'Epoch':<6} | {'Std':<8} | {'Geo':<8} | {'GNS':<8} | {'HNN':<8}")
+    print(f"{'Epoch':<6} | {'Std':<8} | {'Versor':<8} | {'GNS':<8} | {'HNN':<8}")
     print("-" * 55)
     
     for epoch in range(EPOCHS):
         std_model.train()
-        geo_model.train()
+        versor_model.train()
         gns_model.train()
         hnn_model.train()
         
         # Batch loop
         perm = torch.randperm(X_train.shape[0])
-        el_std, el_geo, el_gns, el_hnn = 0.0, 0.0, 0.0, 0.0
+        el_std, el_versor, el_gns, el_hnn = 0.0, 0.0, 0.0, 0.0
         
         for i in range(0, X_train.shape[0], BATCH_SIZE):
             idx = perm[i:i+BATCH_SIZE]
@@ -120,13 +120,13 @@ def train():
             opt_std.step()
             el_std += loss_std.item()
             
-            # Train Geo
-            opt_geo.zero_grad()
-            loss_geo = loss_fn(geo_model(batch_x), batch_y)
-            loss_geo.backward()
-            nn.utils.clip_grad_norm_(geo_model.parameters(), 1.0)
-            opt_geo.step()
-            el_geo += loss_geo.item()
+            # Train Versor
+            opt_versor.zero_grad()
+            loss_versor = loss_fn(versor_model(batch_x), batch_y)
+            loss_versor.backward()
+            nn.utils.clip_grad_norm_(versor_model.parameters(), 1.0)
+            opt_versor.step()
+            el_versor += loss_versor.item()
 
             # Train GNS
             opt_gns.zero_grad()
@@ -149,12 +149,12 @@ def train():
             n = len(perm)*BATCH_SIZE
             # Average loss computation across batches
             n_batches = X_train.shape[0] // BATCH_SIZE
-            print(f"{epoch+1:<6} | {el_std/n_batches:.4f}   | {el_geo/n_batches:.4f}   | {el_gns/n_batches:.4f}   | {el_hnn/n_batches:.4f}")
+            print(f"{epoch+1:<6} | {el_std/n_batches:.4f}   | {el_versor/n_batches:.4f}   | {el_gns/n_batches:.4f}   | {el_hnn/n_batches:.4f}")
             
     # Validation: Empirical Rollout Assessment
     print("\nExecution of 100-step Autoregressive Rollout...")
     std_model.eval()
-    geo_model.eval()
+    versor_model.eval()
     gns_model.eval()
     hnn_model.eval()
     
@@ -163,7 +163,7 @@ def train():
     ground_truth = test_data[:, 100:]
     
     p_std = autoregressive_rollout(std_model, seed, steps=100)
-    p_geo = autoregressive_rollout(geo_model, seed, steps=100)
+    p_versor = autoregressive_rollout(versor_model, seed, steps=100)
     p_gns = autoregressive_rollout(gns_model, seed, steps=100)
     p_hnn = autoregressive_rollout(hnn_model, seed, steps=100)
     
@@ -176,7 +176,7 @@ def train():
 
     seed_last = seed[:, -1:]
     m_std, d_std = get_metrics(p_std, ground_truth, seed_last)
-    m_geo, d_geo = get_metrics(p_geo, ground_truth, seed_last)
+    m_versor, d_versor = get_metrics(p_versor, ground_truth, seed_last)
     m_gns, d_gns = get_metrics(p_gns, ground_truth, seed_last)
     m_hnn, d_hnn = get_metrics(p_hnn, ground_truth, seed_last)
     
@@ -186,10 +186,10 @@ def train():
     print(f"{'Standard Transformer':<20} | {m_std:.4f}     | {d_std:.4f}       | Baseline Architecture")
     print(f"{'GNS (Relational)':<20} | {m_gns:.4f}     | {d_gns:.4f}       | High relational bias; temporal instability")
     print(f"{'HNN (Energy)':<20} | {m_hnn:.4f}     | {d_hnn:.4f}       | Conservative; coordinate deviation")
-    print(f"{'GeoLlama (Ours)':<20} | {m_geo:.4f}     | {d_geo:.4f}       | Integrated Stability and Accuracy")
+    print(f"{'Versor (Ours)':<20} | {m_versor:.4f}     | {d_versor:.4f}       | Integrated Stability and Accuracy")
 
-    if m_geo < m_std and d_geo < d_std:
-        print("\nHYPOTHESIS VALIDATED: GeoLlama achieves optimal stability-accuracy equilibrium.")
+    if m_versor < m_std and d_versor < d_std:
+        print("\nHYPOTHESIS VALIDATED: Versor achieves optimal stability-accuracy equilibrium.")
 
 if __name__ == "__main__":
     train()

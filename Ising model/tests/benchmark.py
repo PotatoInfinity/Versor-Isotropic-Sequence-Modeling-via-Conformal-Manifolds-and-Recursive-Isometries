@@ -11,8 +11,8 @@ import random
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from geo_transformer.core import conformal_lift
-from geo_transformer.model import GeometricTransformer
+from versor_transformer.core import conformal_lift
+from versor_transformer.model import VersorTransformer
 
 # =================================================================
 # 1. RESEARCH CONFIGURATION (Matching CUDA Benchmark)
@@ -111,7 +111,7 @@ def run_master_benchmark(seed=None):
     # Set seeds (Natural Flow)
     set_all_seeds(seed)
     
-    data_path = "/Users/mac/Desktop/Geo-llama/Research/data/ising_data.pt"
+    data_path = "/Users/mac/Desktop/Versor/Research/data/ising_data.pt"
     if not os.path.exists(data_path):
         print("Upload 'ising_data.pt' first!"); return
 
@@ -126,10 +126,10 @@ def run_master_benchmark(seed=None):
     val_ld = DataLoader(val_ds, batch_size=BATCH_SIZE)
 
     # 1. Vanilla Capacity Search
-    geo = GeometricTransformer(EMBED_DIM, N_HEADS, N_LAYERS, N_CLASSES, expansion=EXPANSION).to(DEVICE)
-    g_p = count_parameters(geo)
+    versor = VersorTransformer(EMBED_DIM, N_HEADS, N_LAYERS, N_CLASSES, expansion=EXPANSION).to(DEVICE)
+    v_p_versor = count_parameters(versor)
     
-    target_p = g_p * TARGET_RATIO
+    target_p = v_p_versor * TARGET_RATIO
     v_dim = 32
     for d in range(24, 128, 4):
         test_v = VanillaTransformer(d_model=d, nhead=2, n_layers=2, d_ff=d*2)
@@ -140,10 +140,10 @@ def run_master_benchmark(seed=None):
     van = VanillaTransformer(d_model=v_dim, nhead=2, n_layers=2, d_ff=v_dim*2).to(DEVICE)
     v_p = count_parameters(van)
     
-    print(f"Geo({g_p:,}) vs Vanilla({v_p:,}) ~{v_p/g_p:.1f}x larger")
+    print(f"Versor({v_p_versor:,}) vs Vanilla({v_p:,}) ~{v_p/v_p_versor:.1f}x larger")
 
     v_h, v_vram = train_model(van, train_ld, val_ld, "Vanilla")
-    g_h, g_vram = train_model(geo, train_ld, val_ld, "Geo-Llama")
+    v_h_versor, v_vram_versor = train_model(versor, train_ld, val_ld, "Versor")
 
     # --- DYNAMIC PHASE ACCURACY EVALUATION ---
     def get_phase_acc(model, loader):
@@ -155,63 +155,63 @@ def run_master_benchmark(seed=None):
                 for i in range(len(yb)): phase_res[yb[i].item()].append((preds[i] == yb[i]).item())
         return [np.mean(phase_res[i])*100 for i in range(3)]
 
-    v_ph = get_phase_acc(van, val_ld); g_ph = get_phase_acc(geo, val_ld)
+    v_ph = get_phase_acc(van, val_ld); v_p_versorh = get_phase_acc(versor, val_ld)
     
     def get_s(acc_hist):
         pk = max(acc_hist)
         return next(i for i, v in enumerate(acc_hist) if v >= 0.99*pk)
         
     v_s = get_s(v_h['acc'])
-    g_s = get_s(g_h['acc'])
+    v_s_versor = get_s(v_h_versor['acc'])
 
     # --- PLOTTING DASHBOARD ---
     plt.style.use('default')
     fig, axes = plt.subplots(2, 3, figsize=(18, 10), facecolor='white')
-    v_c, g_c, labels = "#d67a7b", "#7395d6", ['Standard (Heavy)', 'Geo-Llama']
+    v_c, v_c_versor, labels = "#d67a7b", "#7395d6", ['Standard (Heavy)', 'Versor']
 
     # Chart 1: Params (Matched context)
-    axes[0,0].bar(labels, [v_p, g_p], color=[v_c, g_c], alpha=0.9, width=0.5)
+    axes[0,0].bar(labels, [v_p, v_p_versor], color=[v_c, v_c_versor], alpha=0.9, width=0.5)
     axes[0,0].set_title('Parameters (Capacity Match)', fontweight='bold')
-    axes[0,0].set_ylim(0, max(v_p, g_p)*1.6)
-    for i, v in enumerate([v_p, g_p]): axes[0,0].text(i, v + (max(v_p, g_p)*0.08), f"{v:,}", ha='center', fontweight='bold')
+    axes[0,0].set_ylim(0, max(v_p, v_p_versor)*1.6)
+    for i, v in enumerate([v_p, v_p_versor]): axes[0,0].text(i, v + (max(v_p, v_p_versor)*0.08), f"{v:,}", ha='center', fontweight='bold')
 
     # Chart 2: Grokking Speed (Epochs)
-    axes[0,1].bar(labels, [v_s, g_s], color=[v_c, g_c], alpha=0.9, width=0.5)
+    axes[0,1].bar(labels, [v_s, v_s_versor], color=[v_c, v_c_versor], alpha=0.9, width=0.5)
     axes[0,1].set_title('Learning Speed (Epochs to Peak)', fontweight='bold')
-    axes[0,1].set_ylim(0, max(v_s, g_s)*1.6)
-    for i, v in enumerate([v_s, g_s]): axes[0,1].text(i, v + (max(v_s, g_s)*0.08), f"{v} Epochs", ha='center', fontweight='bold')
+    axes[0,1].set_ylim(0, max(v_s, v_s_versor)*1.6)
+    for i, v in enumerate([v_s, v_s_versor]): axes[0,1].text(i, v + (max(v_s, v_s_versor)*0.08), f"{v} Epochs", ha='center', fontweight='bold')
 
     # Chart 3: Storage Footprint (Disk KB)
     v_disk = (v_p * 4) / 1024
-    g_disk = (g_p * 4) / 1024
+    g_disk = (v_p_versor * 4) / 1024
     disk_vals = [v_disk, g_disk]
-    axes[0,2].bar(labels, disk_vals, color=[v_c, g_c], alpha=0.9, width=0.5)
+    axes[0,2].bar(labels, disk_vals, color=[v_c, v_c_versor], alpha=0.9, width=0.5)
     axes[0,2].set_title('Storage Footprint (KB)', fontweight='bold')
     axes[0,2].set_ylim(0, max(disk_vals)*1.6)
     for i, v in enumerate(disk_vals): axes[0,2].text(i, v + (max(disk_vals)*0.08), f"{v:.1f}KB", ha='center', fontweight='bold')
 
     # Row 2: Convergence History
     axes[1,0].plot(v_h['acc'], color=v_c, lw=3, label='Standard', marker='o', markersize=4)
-    axes[1,0].plot(g_h['acc'], color=g_c, lw=3, label='Geo-Llama', marker='s', markersize=4)
+    axes[1,0].plot(v_h_versor['acc'], color=v_c_versor, lw=3, label='Versor', marker='s', markersize=4)
     axes[1,0].set_title('Few-Shot Accuracy (N=45)', fontweight='bold'); axes[1,0].legend(); axes[1,0].grid(alpha=0.15)
 
-    axes[1,1].plot(v_h['loss'], color=v_c, lw=3); axes[1,1].plot(g_h['loss'], color=g_c, lw=3)
+    axes[1,1].plot(v_h['loss'], color=v_c, lw=3); axes[1,1].plot(v_h_versor['loss'], color=v_c_versor, lw=3)
     axes[1,1].set_title('Loss Decay Stabilization', fontweight='bold'); axes[1,1].grid(alpha=0.15)
 
     # Chart 6: Real Dynamic Phase Accuracy
     xp = np.arange(3)
     vb = axes[1,2].bar(xp - 0.15, v_ph, 0.3, label='Standard', color=v_c, alpha=0.8)
-    gb = axes[1,2].bar(xp + 0.15, g_ph, 0.3, label='Geo-Llama', color=g_c, alpha=0.8)
+    v_bar_versor = axes[1,2].bar(xp + 0.15, v_p_versorh, 0.3, label='Versor', color=v_c_versor, alpha=0.8)
     vb[1].set_edgecolor('black'); vb[1].set_linewidth(1.5)
-    gb[1].set_edgecolor('black'); gb[1].set_linewidth(1.5)
+    v_bar_versor[1].set_edgecolor('black'); v_bar_versor[1].set_linewidth(1.5)
     axes[1,2].set_xticks(xp); axes[1,2].set_xticklabels(['Ordered', 'Critical', 'Disordered'])
     axes[1,2].set_title('Accuracy per Physics Phase', fontweight='bold'); axes[1,2].set_ylim(40, 115)
-    for i, (v, g) in enumerate(zip(v_ph, g_ph)):
+    for i, (v, g) in enumerate(zip(v_ph, v_p_versorh)):
         axes[1,2].text(i-0.15, v+1, f"{v:.1f}%", ha='center', fontsize=9, fontweight='bold')
         axes[1,2].text(i+0.15, g+1, f"{g:.1f}%", ha='center', fontsize=9, fontweight='bold')
 
     plt.tight_layout()
-    save_path = "/Users/mac/Desktop/Geo-llama/Research/tests/final_product_results.png"
+    save_path = "/Users/mac/Desktop/Versor/Research/tests/final_product_results.png"
     plt.savefig(save_path, dpi=200)
     print(f"\nFinal Results saved to: {save_path}")
 

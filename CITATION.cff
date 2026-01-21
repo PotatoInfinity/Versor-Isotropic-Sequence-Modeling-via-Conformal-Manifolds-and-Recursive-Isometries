@@ -8,10 +8,10 @@ authors:
     given-names: "Edward George"
     email: "ehirst@unicamp.br"
     affiliation: "University of Campinas (UNICAMP)"
-title: "Geo-Llama: Recursive Rotor Accumulators for O(1) Context"
+title: "Versor: Recursive Rotor Accumulators for O(1) Context"
 version: 0.1.0-alpha
 date-released: 2026-01-20
-repository-code: "https://github.com/PotatoInfinity/Geo-Llama"
+repository-code: "https://github.com/PotatoInfinity/Versor"
 keywords:
   - "geometric-algebra"
   - "transformers"

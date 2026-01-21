@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from .core import gp_cl41, wedge_cl41, inner_cl41, normalize_cl41, GRADE_INDICES, get_gp_map
 
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     """
     In-features: d_in, Out-features: d_out
     Parameters are represented as multivectors in the Clifford basis. 
@@ -53,10 +53,10 @@ class GeometricLinear(nn.Module):
         return normalize_cl41(out)
 
     def __repr__(self):
-        return f"GeometricLinear(in_features={self.in_features}, out_features={self.out_features})"
+        return f"VersorLinear(in_features={self.in_features}, out_features={self.out_features})"
 
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     """
     Geometric Product Attention (GPA).
     
@@ -73,10 +73,10 @@ class GeometricAttention(nn.Module):
         self.n_heads = n_heads
         self.head_dim = embed_dim // n_heads
         
-        self.q_proj = GeometricLinear(embed_dim, embed_dim)
-        self.k_proj = GeometricLinear(embed_dim, embed_dim)
-        self.v_proj = GeometricLinear(embed_dim, embed_dim)
-        self.o_proj = GeometricLinear(embed_dim, embed_dim)
+        self.q_proj = VersorLinear(embed_dim, embed_dim)
+        self.k_proj = VersorLinear(embed_dim, embed_dim)
+        self.v_proj = VersorLinear(embed_dim, embed_dim)
+        self.o_proj = VersorLinear(embed_dim, embed_dim)
         
         # Scaling parameter for the bivector influence
         self.attn_lambda = nn.Parameter(torch.tensor(0.1))
@@ -126,5 +126,5 @@ class GeometricAttention(nn.Module):
         return out
 
     def __repr__(self):
-        return f"GeometricAttention(embed_dim={self.embed_dim}, heads={self.n_heads})"
+        return f"VersorAttention(embed_dim={self.embed_dim}, heads={self.n_heads})"
 

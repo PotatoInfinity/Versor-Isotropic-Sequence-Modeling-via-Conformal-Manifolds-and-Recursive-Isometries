@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from .layers import GeometricAttention, GeometricLinear
+from .layers import VersorAttention, VersorLinear
 from .core import normalize_cl41, gp_cl41, reverse_cl41, inner_cl41
 
-class GeometricActivation(nn.Module):
+class VersorActivation(nn.Module):
     """
     Structural activation function utilizing multivector magnitude gating.
     Preserves the orientational integrity in Clifford GA space while applying 
@@ -17,22 +17,22 @@ class GeometricActivation(nn.Module):
         gate = torch.relu(norm) / (norm + 1e-8)
         return x * gate.unsqueeze(-1)
 
-class GeometricBlock(nn.Module):
+class VersorBlock(nn.Module):
     """
     High-performance block specialized for Conformal Geometric Algebra.
     Integrates Geometric Product Attention (GPA) with a Clifford-covariant MLP.
     """
     def __init__(self, embed_dim, n_heads, expansion=4):
         super().__init__()
-        self.attn = GeometricAttention(embed_dim, n_heads)
+        self.attn = VersorAttention(embed_dim, n_heads)
         # LayerNorm is applied across the dimension and multivector lanes
         self.ln1 = nn.LayerNorm([embed_dim, 32])
         self.ln2 = nn.LayerNorm([embed_dim, 32])
         
         self.mlp = nn.Sequential(
-            GeometricLinear(embed_dim, expansion * embed_dim),
+            VersorLinear(embed_dim, expansion * embed_dim),
             nn.Tanh(), # Hyperbolic tangent activation for optimized manifold mapping
-            GeometricLinear(expansion * embed_dim, embed_dim)
+            VersorLinear(expansion * embed_dim, embed_dim)
         )
         
     def forward(self, x, return_attention=False):
@@ -65,7 +65,7 @@ class RecursiveRotorAccumulator(nn.Module):
     def __init__(self, embed_dim):
         super().__init__()
         # Project each time step to a 'delta-rotor'
-        self.mixer = GeometricLinear(embed_dim, embed_dim)
+        self.mixer = VersorLinear(embed_dim, embed_dim)
         
     def forward(self, x):
         # x: (B, S, D, 32)
@@ -82,7 +82,7 @@ class RecursiveRotorAccumulator(nn.Module):
         psi = torch.tanh(psi) 
         return normalize_cl41(psi)
 
-class GeometricTransformer(nn.Module):
+class VersorTransformer(nn.Module):
     """
     Full Geometric Transformer for Conformal Geometric Algebra Cl(4,1).
     Equipped with Geometric Blocks and optional Stabilized Rotor Pooling.
@@ -91,7 +91,7 @@ class GeometricTransformer(nn.Module):
         super().__init__()
         self.use_rotor_pool = use_rotor_pool
         self.blocks = nn.ModuleList([
-            GeometricBlock(embed_dim, n_heads, expansion=expansion) for _ in range(n_layers)
+            VersorBlock(embed_dim, n_heads, expansion=expansion) for _ in range(n_layers)
         ])
         
         if self.use_rotor_pool:

@@ -140,7 +140,7 @@ def vector_where_max_norm(x):
 # 3. NEURAL NETWORK ARCHITECTURES
 # =================================================================
 
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
         self.weight = nn.Parameter(torch.zeros(out_features, in_features, 32))
@@ -157,15 +157,15 @@ class GeometricLinear(nn.Module):
         out = out_flat.view(x.shape[:-2] + (self.weight.shape[0], 32))
         return manifold_normalization(out)
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     def __init__(self, d_model, n_heads=2):
         super().__init__()
         self.n_heads = n_heads
         self.d_head = d_model // n_heads
-        self.q_proj = GeometricLinear(d_model, d_model)
-        self.k_proj = GeometricLinear(d_model, d_model)
-        self.v_proj = GeometricLinear(d_model, d_model)
-        self.o_proj = GeometricLinear(d_model, d_model)
+        self.q_proj = VersorLinear(d_model, d_model)
+        self.k_proj = VersorLinear(d_model, d_model)
+        self.v_proj = VersorLinear(d_model, d_model)
+        self.o_proj = VersorLinear(d_model, d_model)
         self.scale = nn.Parameter(torch.tensor(4.0))
 
     def forward(self, x):
@@ -191,15 +191,15 @@ class CGA_Transformer(nn.Module):
         self.pos_emb = nn.Parameter(torch.randn(1, seq_len, d_vectors, 32) * 0.02)
         self.layers = nn.ModuleList([
             nn.ModuleDict({
-                'attn': GeometricAttention(d_vectors),
+                'attn': VersorAttention(d_vectors),
                 'mlp': nn.Sequential(
-                    GeometricLinear(d_vectors, d_vectors*4),
+                    VersorLinear(d_vectors, d_vectors*4),
                     nn.Tanh(),
-                    GeometricLinear(d_vectors*4, d_vectors)
+                    VersorLinear(d_vectors*4, d_vectors)
                 )
             }) for _ in range(n_layers)
         ])
-        self.pool = GeometricLinear(d_vectors, d_vectors)
+        self.pool = VersorLinear(d_vectors, d_vectors)
         self.head = nn.Linear(d_vectors*32, 2)
 
     def forward(self, x):

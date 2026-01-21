@@ -43,7 +43,7 @@ class StandardTransformer(nn.Module):
         
         return pred.reshape(B, S, N, D)
 
-class GeometricRotorRNN(nn.Module):
+class VersorRotorRNN(nn.Module):
     """
     Recurrent Neural Network using Geometric Algebra.
     Optimized for Physics stability:

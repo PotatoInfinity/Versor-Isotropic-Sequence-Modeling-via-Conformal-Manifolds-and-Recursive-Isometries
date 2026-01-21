@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # Settings for a publishable-grade benchmark
     SAMPLES_PER_CLASS = 750 # Total 2250 samples (Deep Generalization Challenge)
     GRID_SIZE = 32  # 32x32 grid
-    DATA_DIR = "/Users/mac/Desktop/Geo-llama/Research/data"
+    DATA_DIR = "/Users/mac/Desktop/Versor/Research/data"
     
     os.makedirs(DATA_DIR, exist_ok=True)
     

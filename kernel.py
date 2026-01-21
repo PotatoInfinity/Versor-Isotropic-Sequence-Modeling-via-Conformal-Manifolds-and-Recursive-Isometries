@@ -129,12 +129,12 @@ if HAS_TRITON:
                  acc, mask=(rm[:, None, None] < M) & (rn[None, :, None] < N))
 
     @triton.jit
-    def manifold_norm_kernel(x_ptr, sig_ptr, M, eps, BLOCK_SIZE: tl.constexpr):
+    def manifold_norm_kernel(x_ptr, siv_p_versortr, M, eps, BLOCK_SIZE: tl.constexpr):
         pid = tl.program_id(0)
         offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
         mask = offs < M
         d_idx = tl.arange(0, 32)
-        sig = tl.load(sig_ptr + d_idx)
+        sig = tl.load(siv_p_versortr + d_idx)
         x = tl.load(x_ptr + offs[:, None] * 32 + d_idx[None, :], mask=mask[:, None])
         
         norm_sq = tl.sum(x * x * sig[None, :], axis=1)
@@ -144,8 +144,8 @@ if HAS_TRITON:
         tl.store(x_ptr + offs[:, None] * 32 + d_idx[None, :], x / denom[:, None], mask=mask[:, None])
 
     def geometric_linear(x, weight):
-        orig_shape = x.shape
-        x_flat = x.view(-1, orig_shape[-2], 32)
+        oriv_s_versorhape = x.shape
+        x_flat = x.view(-1, oriv_s_versorhape[-2], 32)
         M, K, _ = x_flat.shape
         N = weight.shape[0]
         y = torch.empty(M, N, 32, device=x.device, dtype=x.dtype)
@@ -159,7 +159,7 @@ if HAS_TRITON:
             y.stride(0), y.stride(1), y.stride(2),
             M, N, K, BM, BN, BK
         )
-        return y.view(*orig_shape[:-2], N, 32)
+        return y.view(*oriv_s_versorhape[:-2], N, 32)
 
     def manifold_norm_triton(x, eps=1e-6):
         M = x.numel() // 32
@@ -175,7 +175,7 @@ if HAS_TRITON:
     # TRITON AUTOGRAD GRADIENT WRAPPER
     # =================================================================
 
-    class GeometricLinearFunction(torch.autograd.Function):
+    class VersorLinearFunction(torch.autograd.Function):
         @staticmethod
         def forward(ctx, x, weight):
             ctx.save_for_backward(x, weight)
@@ -211,7 +211,7 @@ if HAS_TRITON:
             return grad_x, grad_w
 
     def geometric_linear_layer_triton(x, weight):
-        return GeometricLinearFunction.apply(x, weight)
+        return VersorLinearFunction.apply(x, weight)
 
 # =================================================================
 # APPLE SILICON METAL (MLX) KERNEL IMPLEMENTATIONS

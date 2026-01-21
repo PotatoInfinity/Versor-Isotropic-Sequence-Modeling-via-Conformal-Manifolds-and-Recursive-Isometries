@@ -16,14 +16,14 @@ from .core import (
 )
 
 from .layers import (
-    GeometricLinear,
-    GeometricAttention
+    VersorLinear,
+    VersorAttention
 )
 
 from .model import (
-    GeometricTransformer,
-    GeometricActivation,
-    GeometricBlock,
+    VersorTransformer,
+    VersorActivation,
+    VersorBlock,
     RecursiveRotorAccumulator
 )
 
@@ -35,10 +35,10 @@ __all__ = [
     'reverse_cl41',
     'normalize_cl41',
     'GRADE_INDICES',
-    'GeometricLinear',
-    'GeometricAttention',
-    'GeometricTransformer',
-    'GeometricActivation',
-    'GeometricBlock',
+    'VersorLinear',
+    'VersorAttention',
+    'VersorTransformer',
+    'VersorActivation',
+    'VersorBlock',
     'RecursiveRotorAccumulator'
 ]

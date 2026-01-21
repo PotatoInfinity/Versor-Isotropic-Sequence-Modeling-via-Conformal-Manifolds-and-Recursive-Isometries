@@ -87,7 +87,7 @@ def conformal_projection(spins):
 # =================================================================
 # 3. MODEL ARCHITECTURES
 # =================================================================
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     def __init__(self, in_f, out_f):
         super().__init__()
         self.weight = nn.Parameter(torch.zeros(out_f, in_f, 32))
@@ -100,11 +100,11 @@ class GeometricLinear(nn.Module):
         W_op = torch.einsum('oij,jlk->oilk', self.weight, gp)
         return manifold_normalization(torch.einsum('bsil,oilk->bsok', x, W_op))
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     def __init__(self, d, h=2):
         super().__init__()
         self.h, self.dh = h, d // h
-        self.q_p, self.k_p, self.v_p, self.o_p = [GeometricLinear(d, d) for _ in range(4)]
+        self.q_p, self.k_p, self.v_p, self.o_p = [VersorLinear(d, d) for _ in range(4)]
     def forward(self, x):
         b, s, d, _ = x.shape
         q = self.q_p(x).view(b, s, self.h, self.dh, 32).transpose(1, 2)
@@ -116,15 +116,15 @@ class GeometricAttention(nn.Module):
         out = torch.einsum('bhsi,bhidl->bhsdl', attn, v)
         return self.o_p(out.transpose(1, 2).reshape(b, s, d, 32))
 
-class GeometricTransformer(nn.Module):
+class VersorTransformer(nn.Module):
     def __init__(self, d, layers, expansion=6):
         super().__init__()
         self.blocks = nn.ModuleList([nn.ModuleDict({
-            'attn': GeometricAttention(d),
-            'mlp': nn.Sequential(GeometricLinear(d, d*expansion), nn.Tanh(), GeometricLinear(d*expansion, d)),
+            'attn': VersorAttention(d),
+            'mlp': nn.Sequential(VersorLinear(d, d*expansion), nn.Tanh(), VersorLinear(d*expansion, d)),
             'ln1': nn.LayerNorm([d, 32]), 'ln2': nn.LayerNorm([d, 32])
         }) for _ in range(layers)])
-        self.pool = GeometricLinear(d, d)
+        self.pool = VersorLinear(d, d)
         self.head = nn.Linear(d*32, 3)
     def forward(self, x):
         for b in self.blocks:
@@ -212,7 +212,7 @@ def run_benchmark():
     
     # --- PHASE 1: SCALING ---
     sizes = [2, 4, 8, 12, 16, 24, 32, 64] # Full Spectrum
-    res_a = {'geo': [], 'van': []}
+    res_a = {'versor': [], 'van': []}
     
     print("\n=== PHASE 1: SCALING ANALYSIS (2x2 to 64x64) ===")
     for s in sizes:
@@ -225,27 +225,27 @@ def run_benchmark():
             X, Y = generate_ising_dataset(s, n_samples=1500)
             
             torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
-            g_score = train_and_evaluate(GeometricTransformer(4, 2, expansion=6), X, Y)
+            v_s_versorcore = train_and_evaluate(VersorTransformer(4, 2, expansion=6), X, Y)
             
             torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
             v_score = train_and_evaluate(StandardTransformer(32, 2, 2, 64), X, Y)
             
-            gs.append(g_score); vs.append(v_score)
-            print(f"G={g_score:.3f} V={v_score:.3f}")
+            gs.append(v_s_versorcore); vs.append(v_score)
+            print(f"G={v_s_versorcore:.3f} V={v_score:.3f}")
             del X, Y; gc.collect(); torch.cuda.empty_cache()
             
-        res_a['geo'].append((np.mean(gs), np.std(gs)))
+        res_a['versor'].append((np.mean(gs), np.std(gs)))
         res_a['van'].append((np.mean(vs), np.std(vs)))
-        print(f"  AVG: Geo {np.mean(gs):.3f} | Van {np.mean(vs):.3f}")
+        print(f"  AVG: Versor {np.mean(gs):.3f} | Van {np.mean(vs):.3f}")
 
     # --- PHASE 2: EFFICIENCY ---
     print(f"\n=== PHASE 2: PARAMETER EFFICIENCY (64x64) ===")
     tiers = [('Tiny', 2, 24), ('Small', 6, 32), ('Medium', 12, 48)]
-    res_b = {'geo': [], 'van': [], 'pg': [], 'pv': []}
+    res_b = {'versor': [], 'van': [], 'pg': [], 'pv': []}
     
     for lbl, ge, vd in tiers:
         print(f"\n> Tier {lbl}:")
-        mod_g = GeometricTransformer(4, 2, expansion=ge)
+        mod_g = VersorTransformer(4, 2, expansion=ge)
         mod_v = StandardTransformer(vd, 2, 2, vd*2)
         pg = sum(p.numel() for p in mod_g.parameters())
         pv = sum(p.numel() for p in mod_v.parameters())
@@ -258,7 +258,7 @@ def run_benchmark():
             X, Y = generate_ising_dataset(64, n_samples=1500)
             
             torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
-            gs.append(train_and_evaluate(GeometricTransformer(4, 2, expansion=ge), X, Y))
+            gs.append(train_and_evaluate(VersorTransformer(4, 2, expansion=ge), X, Y))
             
             torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
             vs.append(train_and_evaluate(StandardTransformer(vd, 2, 2, vd*2), X, Y))
@@ -266,7 +266,7 @@ def run_benchmark():
             print(f"G={gs[-1]:.3f} V={vs[-1]:.3f}")
             del X, Y; gc.collect(); torch.cuda.empty_cache()
             
-        res_b['geo'].append((np.mean(gs), np.std(gs)))
+        res_b['versor'].append((np.mean(gs), np.std(gs)))
         res_b['van'].append((np.mean(vs), np.std(vs)))
         print(f"  Ratio: {np.mean(gs)/max(np.mean(vs), 0.01):.2f}x")
 
@@ -281,7 +281,7 @@ def plot_results(sz, ra, rb):
     
     # Plot A
     xa = [s*s for s in sz]
-    yg, yge = zip(*ra['geo']); yv, yve = zip(*ra['van'])
+    yg, yge = zip(*ra['versor']); yv, yve = zip(*ra['van'])
     ax[0].errorbar(xa, yg, yerr=yge, fmt='-o', color='#4A90E2', lw=2.5, capsize=5, label='Geometric (Cl 4,1)')
     ax[0].errorbar(xa, yv, yerr=yve, fmt='--s', color='#E74C3C', lw=2.5, capsize=5, label='Standard Attention')
     ax[0].set_xscale('log'); ax[0].set_xticks(xa); ax[0].set_xticklabels([f"{s}x{s}" for s in sz])
@@ -290,8 +290,8 @@ def plot_results(sz, ra, rb):
     
     # Plot B
     xp = [(g+v)/2 for g,v in zip(rb['pg'], rb['pv'])]
-    yr = [g[0]/max(v[0], 0.01) for g,v in zip(rb['geo'], rb['van'])]
-    yre = [r * np.sqrt((g[1]/g[0])**2 + (v[1]/v[0])**2) if g[0]>0 else 0 for r,g,v in zip(yr, rb['geo'], rb['van'])]
+    yr = [g[0]/max(v[0], 0.01) for g,v in zip(rb['versor'], rb['van'])]
+    yre = [r * np.sqrt((g[1]/g[0])**2 + (v[1]/v[0])**2) if g[0]>0 else 0 for r,g,v in zip(yr, rb['versor'], rb['van'])]
     ax[1].errorbar(xp, yr, yerr=yre, fmt='-^', color='#8E44AD', lw=2.5, capsize=5, label='Efficiency Ratio')
     ax[1].axhline(1.0, color='gray', ls='--')
     ax[1].fill_between(xp, 1.0, yr, color='#8E44AD', alpha=0.15)

@@ -22,7 +22,7 @@ impl AethelgardX {
 
     pub fn get_best_move(&mut self) -> Move {
         let side = self.board.side_to_move();
-        let enemy_king_sq = self.board.king(!side);
+        let enemy_kinv_s_versorq = self.board.king(!side);
         
         let mut field = GeodesicField::new();
         field.update_costs(&self.board);
@@ -40,7 +40,7 @@ impl AethelgardX {
             // Primal Wave (from us)
             field.propagate(&active_sqs, piece_type, &self.board);
             // Retrocausal Wave (from Enemy King)
-            field.propagate_retro(enemy_king_sq as usize, &self.board);
+            field.propagate_retro(enemy_kinv_s_versorq as usize, &self.board);
             
             if let Some(target_sq) = field.solve_flow(&active_sqs) {
                 if let Some(mv) = self.find_move_to_target(target_sq) {

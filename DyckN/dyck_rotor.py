@@ -124,7 +124,7 @@ class Cl41Algebra:
 # ARCHITECTURAL COMPARISON: RECURSIVE ISOMETRIES VS EUCLIDEAN RNN
 # =================================================================
 
-class GeoLlama_Rotor(nn.Module):
+class Versor_Rotor(nn.Module):
     """
     Rotor-based recursive architecture for O(1) context representation.
     The hidden state evolution is modeled as a sequence of isometric transformations:
@@ -201,7 +201,7 @@ class GeoLlama_Rotor(nn.Module):
 class Standard_LSTM(nn.Module):
     def __init__(self, target_params: int):
         super().__init__()
-        # Auto-scale hidden dim to match parameter count of Geo-Model
+        # Auto-scale hidden dim to match parameter count of Versor-Model
         # Param count approx: 4 * ((32 + h) * h + h)
         embed_dim = 32
         
@@ -381,7 +381,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--depths', type=int, nargs='+', default=[20, 50, 100, 200, 500], help='Nesting depths')
     parser.add_argument('--repeats', type=int, default=3, help='Trials per depth')
-    parser.add_argument('--d_vectors', type=int, default=16, help='Width of Geo-Model')
+    parser.add_argument('--d_vectors', type=int, default=16, help='Width of Versor-Model')
     parser.add_argument('--epochs', type=int, default=20)
     args = parser.parse_args()
     
@@ -393,47 +393,47 @@ if __name__ == "__main__":
     algebra = Cl41Algebra(device)
     
     results = {}
-    prev_geo = None
+    prev_versor = None
     prev_lstm = None
     
     for d in args.depths:
         seq_len = d * 2
         print(f"\n[Depth {d} | Seq Length {seq_len}]")
-        results[d] = {'geo': [], 'lstm': []}
+        results[d] = {'versor': [], 'lstm': []}
         
         for r in range(args.repeats):
-            # 1. Geo-Model
-            geo = GeoLlama_Rotor(d_vectors=args.d_vectors, algebra=algebra)
-            if prev_geo is not None and r == 0:
-                geo = transfer_weights(prev_geo, geo)
-            g_params = geo.count_parameters()
+            # 1. Versor-Model
+            versor = Versor_Rotor(d_vectors=args.d_vectors, algebra=algebra)
+            if prev_versor is not None and r == 0:
+                versor = transfer_weights(prev_versor, versor)
+            v_p_versorarams = versor.count_parameters()
             
             # 2. LSTM (Matched)
-            lstm = Standard_LSTM(target_params=g_params)
+            lstm = Standard_LSTM(target_params=v_p_versorarams)
             if prev_lstm is not None and r == 0:
                 lstm = transfer_weights(prev_lstm, lstm)
             l_params = lstm.count_parameters()
             
             if r == 0:
-                print(f"  Params Match: Geo={g_params} | LSTM={l_params}")
+                print(f"  Params Match: Versor={v_p_versorarams} | LSTM={l_params}")
             
             # Train
             t0 = time.time()
-            acc_g = train_model(geo, d, device, args.epochs)
+            acc_g = train_model(versor, d, device, args.epochs)
             t_g = time.time() - t0
             
             t0 = time.time()
             acc_l = train_model(lstm, d, device, args.epochs)
             t_l = time.time() - t0
             
-            print(f"    Run {r+1}: Geo={acc_g*100:.1f}% ({t_g:.1f}s) | LSTM={acc_l*100:.1f}% ({t_l:.1f}s)")
+            print(f"    Run {r+1}: Versor={acc_g*100:.1f}% ({t_g:.1f}s) | LSTM={acc_l*100:.1f}% ({t_l:.1f}s)")
             
-            results[d]['geo'].append(acc_g)
+            results[d]['versor'].append(acc_g)
             results[d]['lstm'].append(acc_l)
             
             # Save the successful models for the next stage of the curriculum
             if r == 0: # Usually reuse the first trial of each depth for the next stage
-                prev_geo = geo
+                prev_versor = versor
                 prev_lstm = lstm
             
     # Save

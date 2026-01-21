@@ -47,7 +47,7 @@
 84.0s 47 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 84.0s 48 warnings.warn(
 86.9s 49 Seed 2026 [5/5]... G=0.000 V=0.000
-86.9s 50 AVG: Geo 0.000 | Van 0.000
+86.9s 50 AVG: Versor 0.000 | Van 0.000
 86.9s 51 
 86.9s 52 > Grid 4x4 (16 Tokens):
 96.6s 53 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -80,7 +80,7 @@
 146.9s 80 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 146.9s 81 warnings.warn(
 149.8s 82 Seed 2026 [5/5]... G=0.000 V=0.000
-149.8s 83 AVG: Geo 0.017 | Van 0.012
+149.8s 83 AVG: Versor 0.017 | Van 0.012
 149.8s 84 
 149.8s 85 > Grid 8x8 (64 Tokens):
 159.4s 86 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -113,7 +113,7 @@
 209.6s 113 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 209.6s 114 warnings.warn(
 212.7s 115 Seed 2026 [5/5]... G=0.141 V=0.131
-212.7s 116 AVG: Geo 0.086 | Van 0.126
+212.7s 116 AVG: Versor 0.086 | Van 0.126
 212.7s 117 
 212.7s 118 > Grid 12x12 (144 Tokens):
 224.6s 119 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -146,7 +146,7 @@
 282.9s 146 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 282.9s 147 warnings.warn(
 286.0s 148 Seed 2026 [5/5]... G=0.198 V=0.266
-286.0s 149 AVG: Geo 0.202 | Van 0.231
+286.0s 149 AVG: Versor 0.202 | Van 0.231
 286.0s 150 
 286.0s 151 > Grid 16x16 (256 Tokens):
 306.0s 152 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -179,7 +179,7 @@
 398.6s 179 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 398.6s 180 warnings.warn(
 401.8s 181 Seed 2026 [5/5]... G=0.276 V=0.246
-401.8s 182 AVG: Geo 0.277 | Van 0.255
+401.8s 182 AVG: Versor 0.277 | Van 0.255
 401.8s 183 
 401.8s 184 > Grid 24x24 (576 Tokens):
 451.8s 185 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -212,7 +212,7 @@
 689.5s 212 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 689.5s 213 warnings.warn(
 699.2s 214 Seed 2026 [5/5]... G=0.442 V=0.406
-699.2s 215 AVG: Geo 0.422 | Van 0.410
+699.2s 215 AVG: Versor 0.422 | Van 0.410
 699.2s 216 
 699.2s 217 > Grid 32x32 (1024 Tokens):
 805.0s 218 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -245,7 +245,7 @@
 1333.2s 245 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 1333.2s 246 warnings.warn(
 1360.1s 247 Seed 2026 [5/5]... G=0.520 V=0.422
-1360.1s 248 AVG: Geo 0.486 | Van 0.474
+1360.1s 248 AVG: Versor 0.486 | Van 0.474
 1360.1s 249 
 1360.1s 250 > Grid 64x64 (4096 Tokens):
 2228.9s 251 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
@@ -278,7 +278,7 @@
 7133.8s 278 /usr/local/lib/python3.11/dist-packages/torch/nn/modules/transformer.py:385: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
 7133.8s 279 warnings.warn(
 7491.5s 280 Seed 2026 [5/5]... G=0.652 V=0.701
-7491.5s 281 AVG: Geo 0.647 | Van 0.685
+7491.5s 281 AVG: Versor 0.647 | Van 0.685
 7491.5s 282 
 7491.5s 283 === PHASE 2: PARAMETER EFFICIENCY (64x64) ===
 7491.5s 284 

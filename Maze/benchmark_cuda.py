@@ -131,7 +131,7 @@ def conformal_projection(grid: torch.Tensor):
 # ARCHITECTURAL IMPLEMENTATIONS: GEOMETRIC VS EUCLIDEAN
 # =================================================================
 
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     def __init__(self, in_features, out_features):
         super().__init__()
         # Weight shape: (Out, In, 32) -> Multivector Weights
@@ -147,16 +147,16 @@ class GeometricLinear(nn.Module):
         out = torch.einsum('bsil,oilk->bsok', x, W_op)
         return manifold_normalization(out)
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     def __init__(self, d_model, n_heads=2):
         super().__init__()
         self.n_heads = n_heads
         self.d_head = d_model // n_heads
         
-        self.q_proj = GeometricLinear(d_model, d_model)
-        self.k_proj = GeometricLinear(d_model, d_model)
-        self.v_proj = GeometricLinear(d_model, d_model)
-        self.o_proj = GeometricLinear(d_model, d_model)
+        self.q_proj = VersorLinear(d_model, d_model)
+        self.k_proj = VersorLinear(d_model, d_model)
+        self.v_proj = VersorLinear(d_model, d_model)
+        self.o_proj = VersorLinear(d_model, d_model)
         
         # High initial scale to sharpen geometric interactions
         self.scale = nn.Parameter(torch.tensor(4.0))
@@ -189,15 +189,15 @@ class CGA_Transformer(nn.Module):
         # The "Brain" (Invariant to grid size)
         self.layers = nn.ModuleList([
             nn.ModuleDict({
-                'attn': GeometricAttention(d_vectors),
+                'attn': VersorAttention(d_vectors),
                 'mlp': nn.Sequential(
-                    GeometricLinear(d_vectors, d_vectors*4),
+                    VersorLinear(d_vectors, d_vectors*4),
                     nn.Tanh(),
-                    GeometricLinear(d_vectors*4, d_vectors)
+                    VersorLinear(d_vectors*4, d_vectors)
                 )
             }) for _ in range(n_layers)
         ])
-        self.pool = GeometricLinear(d_vectors, d_vectors)
+        self.pool = VersorLinear(d_vectors, d_vectors)
         self.head = nn.Linear(d_vectors*32, 2)
 
     def forward(self, x):
@@ -415,7 +415,7 @@ if __name__ == "__main__":
             transfer_from=prev_model
         )
         
-        results[size] = {'geo_hist': hist, 'geo_mcc': mcc}
+        results[size] = {'versor_hist': hist, 'geo_mcc': mcc}
         prev_model = trained_model # Save for next stage
         
     # ---------------------------------------------------------
@@ -450,15 +450,15 @@ if __name__ == "__main__":
     print(f"{'Grid':<6} | {'Geometric':<10} | {'Standard':<10} | {'Delta'}")
     print("-" * 50)
     for s in SIZES:
-        geo = results[s]['geo_mcc']
+        versor = results[s]['geo_mcc']
         std = results[s]['std_mcc']
-        print(f"{s}x{s:<3} | {geo:.3f}      | {std:.3f}      | {geo-std:+.3f}")
+        print(f"{s}x{s:<3} | {versor:.3f}      | {std:.3f}      | {versor-std:+.3f}")
         
     # Plot
     plt.figure(figsize=(12, 8))
     for i, s in enumerate(SIZES):
         # Normalize x-axis to 0-1 range for comparison
-        h_g = results[s]['geo_hist']
+        h_g = results[s]['versor_hist']
         h_s = results[s]['std_hist']
         
         # Pad shorter histories to match plotting
@@ -518,7 +518,7 @@ if __name__ == "__main__":
         pt_b = torch.randn(B_SIZE, DIM, device=DEVICE)
         
         # Using the helper from this file (compute_basis_product_cl41 logic is cached in GP_MAP)
-        # Note: 'GeometricLinear' uses einsum with GP_MAP.
+        # Note: 'VersorLinear' uses einsum with GP_MAP.
         gp_map = get_gp_map(DEVICE)
         
         # Element-wise product logic in PyTorch using the table:

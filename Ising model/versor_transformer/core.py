@@ -81,10 +81,10 @@ def wedge_cl41(A, B):
     for a in range(32):
         for b in range(32):
             ga = bin(a).count('1')
-            gb = bin(b).count('1')
+            v_bar_versor = bin(b).count('1')
             _, res = basis_product_cl41(a, b)
             gres = bin(res).count('1')
-            if gres != (ga + gb):
+            if gres != (ga + v_bar_versor):
                 gp_map[a, b, res] = 0.0
     return torch.einsum('...i, ...j, ijk -> ...k', A, B, gp_map)
 

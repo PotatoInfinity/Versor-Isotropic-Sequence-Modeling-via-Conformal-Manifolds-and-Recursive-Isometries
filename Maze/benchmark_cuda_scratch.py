@@ -51,7 +51,7 @@ def print_header():
     print(f"Date:         {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Hardware:     {GPU_NAME}")
     print(f"Task:         Path Continuity ('Broken Snake' Dataset)")
-    print(f"Config:       Batch 64 | FP32 (Geo) | High-Gain Attention")
+    print(f"Config:       Batch 64 | FP32 (Versor) | High-Gain Attention")
     print(f"{'='*80}\n")
 
 # =================================================================
@@ -129,7 +129,7 @@ def conformal_projection(grid: torch.Tensor):
 # 2. MODEL ARCHITECTURES
 # =================================================================
 
-class GeometricLinear(nn.Module):
+class VersorLinear(nn.Module):
     def __init__(self, in_features: int, out_features: int):
         super().__init__()
         self.weight = nn.Parameter(torch.zeros(out_features, in_features, 32))
@@ -144,16 +144,16 @@ class GeometricLinear(nn.Module):
         out = torch.einsum('bsil,oilk->bsok', x, W_op)
         return manifold_normalization(out)
 
-class GeometricAttention(nn.Module):
+class VersorAttention(nn.Module):
     def __init__(self, d_model: int, n_heads: int = 2):
         super().__init__()
         self.n_heads = n_heads
         self.d_head = d_model // n_heads
 
-        self.q_proj = GeometricLinear(d_model, d_model)
-        self.k_proj = GeometricLinear(d_model, d_model)
-        self.v_proj = GeometricLinear(d_model, d_model)
-        self.o_proj = GeometricLinear(d_model, d_model)
+        self.q_proj = VersorLinear(d_model, d_model)
+        self.k_proj = VersorLinear(d_model, d_model)
+        self.v_proj = VersorLinear(d_model, d_model)
+        self.o_proj = VersorLinear(d_model, d_model)
         
         # FIX: Higher initial scale for long sequences (32x32=1024)
         self.scale = nn.Parameter(torch.tensor(4.0))
@@ -186,15 +186,15 @@ class CGA_Transformer(nn.Module):
 
         self.layers = nn.ModuleList([
             nn.ModuleDict({
-                'attn': GeometricAttention(d_vectors),
+                'attn': VersorAttention(d_vectors),
                 'mlp': nn.Sequential(
-                    GeometricLinear(d_vectors, d_vectors*4),
+                    VersorLinear(d_vectors, d_vectors*4),
                     nn.Tanh(),
-                    GeometricLinear(d_vectors*4, d_vectors)
+                    VersorLinear(d_vectors*4, d_vectors)
                 )
             }) for _ in range(n_layers)
         ])
-        self.pool = GeometricLinear(d_vectors, d_vectors)
+        self.pool = VersorLinear(d_vectors, d_vectors)
         self.head = nn.Linear(d_vectors*32, 2)
 
     def forward(self, x: torch.Tensor):
@@ -277,7 +277,7 @@ def generate_dataset(size: int, n_samples: int, d_vectors: int = 4):
 # 4. EXPERIMENTAL ROUTINE
 # =================================================================
 
-def run_training_cycle(model_name: str, model: nn.Module, size: int, d_vectors: int):
+def run_traininv_c_versorycle(model_name: str, model: nn.Module, size: int, d_vectors: int):
     # Dynamic sample size: More samples for harder (larger) grids
     n_samples = 3000
     if size >= 32: n_samples = 6000
@@ -380,8 +380,8 @@ if __name__ == "__main__":
         # GEOMETRIC MODEL SETUP
         # Give more capacity for larger grids
         d_vec = 8 if size >= 32 else 4
-        model_geo = CGA_Transformer(d_vectors=d_vec, n_layers=4, seq_len=size*size)
-        hist_geo, mcc_geo = run_training_cycle(f"CGA-Transformer ({size}x{size})", model_geo, size, d_vec)
+        model_versor = CGA_Transformer(d_vectors=d_vec, n_layers=4, seq_len=size*size)
+        hist_geo, mcc_geo = run_traininv_c_versorycle(f"CGA-Transformer ({size}x{size})", model_versor, size, d_vec)
         
         # STANDARD MODEL SETUP
         # Scale standard model to match input dimensionality (d_vec * 32)
@@ -391,11 +391,11 @@ if __name__ == "__main__":
         
         model_std = Standard_Transformer(d_input=d_std_input, d_model=d_std_model, n_heads=4, n_layers=4)
         
-        hist_std, mcc_std = run_training_cycle(f"Standard-Attention ({size}x{size})", model_std, size, d_vec)
+        hist_std, mcc_std = run_traininv_c_versorycle(f"Standard-Attention ({size}x{size})", model_std, size, d_vec)
         
         delta = mcc_geo - mcc_std
         print(f"\r{size}x{size:<9} | {mcc_geo:.3f}              | {mcc_std:.3f}              | {delta:+.3f}")
-        results_summary[size] = {'geo': hist_geo, 'std': hist_std}
+        results_summary[size] = {'versor': hist_geo, 'std': hist_std}
         print("-" * 65)
         
     print("\nBenchmark sequence complete.")
@@ -408,7 +408,7 @@ if __name__ == "__main__":
         
     plt.figure(figsize=(10, 6))
     for idx, size in enumerate(SIZES):
-        plt.plot(results_summary[size]['geo'], label=f"CGA ({size}x{size})", linewidth=2.5, alpha=0.8)
+        plt.plot(results_summary[size]['versor'], label=f"CGA ({size}x{size})", linewidth=2.5, alpha=0.8)
         plt.plot(results_summary[size]['std'], label=f"Std ({size}x{size})", linewidth=2.5, linestyle='--', alpha=0.5)
     
     plt.title("Convergence Analysis: Topological Connectivity")
@@ -445,7 +445,7 @@ if __name__ == "__main__":
         pt_b = torch.randn(B_SIZE, DIM, device=DEVICE)
         
         # Using the helper from this file (compute_basis_product_cl41 logic is cached in GP_MAP)
-        # Note: 'GeometricLinear' uses einsum with GP_MAP.
+        # Note: 'VersorLinear' uses einsum with GP_MAP.
         gp_map = get_gp_map(DEVICE)
         
         # Element-wise product logic in PyTorch using the table:
