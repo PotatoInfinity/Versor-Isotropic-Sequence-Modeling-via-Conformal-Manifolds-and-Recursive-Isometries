@@ -4,7 +4,7 @@
 **Authors:** Trương Minh Huy, Edward George Hirst  
 **Subject:** Geometric Deep Learning, Isotropic Spatio-Temporal Modeling, Structural Latent Manifolds
 
-![Version](https://img.shields.io/badge/version-1.1.0--theoretical-blue) ![Algebra](https://img.shields.io/badge/algebra-Cl(4,1)-red) ![Status](https://img.shields.io/badge/status-Research_In_Progress-orange)
+![Version](https://img.shields.io/badge/version-1.1.0--theoretical-blue) ![Algebra](https://img.shields.io/badge/algebra-Cl(4,1)-red) ![Status](https://img.shields.io/badge/status-Research_In_Progress-orange) [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18320795-blue)](https://doi.org/10.5281/zenodo.18320795)
 
 ---
 
