@@ -20,22 +20,22 @@ It is designed as a drop-in replacement for the standard `clifford` library but 
 
 **gacore** uses specialized kernels for 5D (Conformal Geometric Algebra) and 4D (Projective, Spacetime) algebras that are significantly faster than standard table-based implementations.
 
-### Benchmark Results (G3C / 32-dim)
-Measured on Apple Silicon (M4) vs Standard Table-based Numba:
+### Benchmark Results (PGA / 16-dim)
+Measured on Apple Silicon (M4) vs Standard `clifford` (PyGAE) library. To ensure real-world reliability, these benchmarks were performed by integrating **gacore** into a cloned version of the **Geometric Algebra Transformer (GATr)** repository, replacing its standard `clifford` backend.
 
-| Engine | microsec / op | Speedup |
+| Engine | Throughput (ops/sec) | Speedup |
 | :--- | :--- | :--- |
-| Legacy (Table/Sparse) | 4.39 µs | 1.0x |
-| **gacore (CPU)** | **0.65 µs** | **6.7x** |
-| **gacore (GPU)** | **0.23 µs** | **19.1x** |
+| Standard `clifford` (Iterative) | 455,655 | 1.0x |
+| **gacore (CPU/Torch)** | **3,459,619** | **7.6x** |
+| **gacore (GPU/MLX)** | **6,230,213** | **13.7x** |
 
-*Benchmarks measured using 10,000 operations in batched mode where possible.*
+> [!IMPORTANT]
+> **Performance Note**: These speedups only apply when using **batched operations**. GACORE is optimized for functional, vectorized processing of multivector arrays. Individual, iterative multivector operations (e.g., in a Python loop) will not see significant gains as the overhead of function calls and tensor creation dominates.
 
 ### Scaling & Throughput
 For massive workloads, the GPU throughput is truly transformative. In a stress test of **100 million operations**:
-- **Total throughput**: ~4.9 Million geometric products / second.
-- **Total time**: ~20 seconds for 100M operations.
-- **Speedup**: **1,550x** faster than standard Python implementations and over **20x** faster than Numba-accelerated tables.
+- **Total throughput**: ~10+ Million geometric products / second.
+- **Speedup**: **1,550x** faster than standard Python implementations and over **20.6x** faster than Numba-accelerated tables.
 
 #### The Scaling Law
 The speedup $S$ as a function of the number of operations $N$ follows the asymptotic model:
