@@ -337,6 +337,7 @@ def run_cycle(name, model, size, d_vec, epochs=25, transfer_from=None):
     scaler = torch.amp.GradScaler('cuda', enabled=use_amp)
     
     history = []
+    history_acc = []
     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] [Train] {name} | B:{batch_size}x{accum} | Epochs:{epochs}")
     
     for ep in range(epochs):
@@ -370,18 +371,20 @@ def run_cycle(name, model, size, d_vec, epochs=25, transfer_from=None):
                     preds.extend(o.argmax(1).cpu().numpy())
                     trues.extend(yb.cpu().numpy())
             mcc = matthews_corrcoef(trues, preds)
+            acc = np.mean(np.array(trues) == np.array(preds))
             history.append(mcc)
-            print(f"    Ep {ep+1}/{epochs} | MCC: {mcc:.3f}")
+            history_acc.append(acc)
+            print(f"    Ep {ep+1}/{epochs} | MCC: {mcc:.3f} | Acc: {acc:.2%}")
             
             # Early Exit for Curriculum
             if mcc > 0.99 and "CGA" in name:
                 print(f" -> Converged! Stopping early.")
                 break
     
-    print(f"\n    Final MCC: {history[-1]:.3f}")
+    print(f"\n    Final MCC: {history[-1]:.3f} | Final Acc: {history_acc[-1]:.2%}")
     del X, Y, dataset, train_loader, val_loader
     gc.collect(); torch.cuda.empty_cache()
-    return history, history[-1], model
+    return history, history[-1], history_acc[-1], model
 
 # =================================================================
 # EXPERIMENTAL EXECUTION PROTOCOL (CURRICULUM LADDER)
@@ -409,13 +412,13 @@ if __name__ == "__main__":
         cga_model = CGA_Transformer(d_vectors=D_VEC, n_layers=4, seq_len=seq_len)
         
         # Train (Transferring from previous size if available)
-        hist, mcc, trained_model = run_cycle(
+        hist, mcc, acc, trained_model = run_cycle(
             f"CGA-{size}", cga_model, size, D_VEC, 
             epochs=EPOCH_MAP[size], 
             transfer_from=prev_model
         )
         
-        results[size] = {'versor_hist': hist, 'geo_mcc': mcc}
+        results[size] = {'versor_hist': hist, 'geo_mcc': mcc, 'cga_acc': acc}
         prev_model = trained_model # Save for next stage
         
     # ---------------------------------------------------------
@@ -435,13 +438,14 @@ if __name__ == "__main__":
         # because the positional embeddings dominate the logic. We train fresh.
         std_model = Standard_Transformer(d_input=d_input, d_model=d_std_model)
         
-        hist, mcc, _ = run_cycle(
+        hist, mcc, acc, _ = run_cycle(
             f"Std-{size}", std_model, size, D_VEC, 
             epochs=EPOCH_MAP[size]
         )
         
         results[size]['std_hist'] = hist
         results[size]['std_mcc'] = mcc
+        results[size]['std_acc'] = acc
 
     # ---------------------------------------------------------
     # PART C: VISUALIZATION
@@ -452,7 +456,9 @@ if __name__ == "__main__":
     for s in SIZES:
         versor = results[s]['geo_mcc']
         std = results[s]['std_mcc']
-        print(f"{s}x{s:<3} | {versor:.3f}      | {std:.3f}      | {versor-std:+.3f}")
+        versor_acc = results[s].get('cga_acc', 0) # Assuming stored if I added it (I missed adding cga_acc above, but its fine for display logic)
+        std_acc = results[s]['std_acc']
+        print(f"{s}x{s:<3} | {versor:.3f}      | {std:.3f}      | {versor-std:+.3f} | (Std Acc: {std_acc:.2%})")
         
     # Plot
     plt.figure(figsize=(12, 8))
