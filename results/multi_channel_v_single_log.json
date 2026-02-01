@@ -1,0 +1,13 @@
+{
+    "1-ch RNN (Baseline)": {
+        "mse": 12.809043,
+        "params": 109100.0,
+        "time": 39.4
+    },
+    "Multi-Channel (Disadvantaged)": {
+        "mse": 12.684171,
+        "params": 48000.0,
+        "time": 315.6
+    },
+    "note": "Extracted from terminal output of multi_channel_v_single.py execution on 2026-01-28 20:20:44."
+}
