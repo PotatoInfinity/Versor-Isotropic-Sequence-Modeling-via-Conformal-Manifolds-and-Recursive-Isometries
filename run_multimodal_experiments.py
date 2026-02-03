@@ -126,7 +126,7 @@ def run_nlp_task(seed):
             if steps >= 50: break
         losses.append(epoch_loss / steps)
         
-    return {"final_loss": losses[-1], "perplexity": math.exp(losses[-1])}
+    return {"final_loss": losses[-1], "perplexity": math.exp(losses[-1]), "bpc": losses[-1] / math.log(2)}
 
 # -----------------------------------------------------------------------------
 # 2. Vision Task: Synthetic Cifar-Like
@@ -288,7 +288,7 @@ def run_all_seeds():
         try:
             res = run_nlp_task(seed)
             agg_results["nlp"].append(res)
-            print(f"[Seed {seed}] NLP Perplexity: {res['perplexity']:.4f}")
+            print(f"[Seed {seed}] NLP Perplexity: {res['perplexity']:.4f}, BPC: {res['bpc']:.4f}")
         except Exception as e:
             print(f"[Seed {seed}] NLP Failed: {e}")
             
@@ -313,9 +313,12 @@ def run_all_seeds():
     
     # NLP Stats
     nlp_perps = [r["perplexity"] for r in agg_results["nlp"]]
+    nlp_bpcs = [r["bpc"] for r in agg_results["nlp"]]
     final_stats["nlp"] = {
         "mean_perplexity": float(np.mean(nlp_perps)),
         "std_perplexity": float(np.std(nlp_perps)),
+        "mean_bpc": float(np.mean(nlp_bpcs)),
+        "std_bpc": float(np.std(nlp_bpcs)),
         "runs": len(nlp_perps)
     }
     
@@ -351,7 +354,7 @@ def run_all_seeds():
     print("\n" + "="*50)
     print("FINAL AGGREGATED RESULTS")
     print("="*50)
-    print(f"NLP Perplexity: {final_stats['nlp']['mean_perplexity']:.4f} ± {final_stats['nlp']['std_perplexity']:.4f}")
+    print(f"NLP Perplexity: {final_stats['nlp']['mean_perplexity']:.4f} ± {final_stats['nlp']['std_perplexity']:.4f} (BPC: {final_stats['nlp']['mean_bpc']:.4f})")
     print(f"Vision Accuracy: {final_stats['vision']['mean_accuracy']:.4f} ± {final_stats['vision']['std_accuracy']:.4f}")
     print(f"Graph MSE: {final_stats['graph']['mean_mse']:.4f} ± {final_stats['graph']['std_mse']:.4f}")
     print(f"Total time: {duration:.2f}s")
