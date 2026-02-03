@@ -14,8 +14,12 @@ import sys
 
 sys.path.append('..')
 
-from data_gen import generate_gravity_data
-from models import StandardTransformer, VersorRotorRNN, GraphNetworkSimulator, HamiltonianNN, MultiChannelVersor, HamiltonianVersorNN, EquivariantGNN, MambaSimulator
+try:
+    from data_gen import generate_gravity_data
+    from models import StandardTransformer, VersorRotorRNN, GraphNetworkSimulator, HamiltonianNN, MultiChannelVersor, HamiltonianVersorNN, EquivariantGNN, MambaSimulator
+except ImportError:
+    from Physics.data_gen import generate_gravity_data
+    from Physics.models import StandardTransformer, VersorRotorRNN, GraphNetworkSimulator, HamiltonianNN, MultiChannelVersor, HamiltonianVersorNN, EquivariantGNN, MambaSimulator
 
 def compute_energy(data):
     pos = data[..., :3]
