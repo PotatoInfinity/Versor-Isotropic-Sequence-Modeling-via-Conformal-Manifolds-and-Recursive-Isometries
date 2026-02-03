@@ -13,9 +13,8 @@ import numpy as np
 import torch
 
 # Create results directory
-RESULTS_DIR = "paper_results"
+RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
-os.makedirs("results", exist_ok=True)
 
 def save_results(experiment_name, results_dict):
     """Save results with timestamp"""
@@ -146,6 +145,26 @@ def run_experiment_5_kernel_benchmark():
         print(f"❌ Error running Kernel benchmark: {e}")
         return None
 
+def run_experiment_new_domains():
+    """Generic Domains (NLP, Vision, Graph)"""
+    print("\n" + "="*60)
+    print("EXPERIMENT 6: Multimodal Capabilities")
+    print("="*60)
+    
+    try:
+        import run_multimodal_experiments as mm
+        
+        # Run all seeds and get aggregated stats
+        results = mm.run_all_seeds()
+        
+        return save_results("multimodal", results)
+        
+    except Exception as e:
+        print(f"❌ Error running Multimodal experiments: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def generate_summary_report():
     """Generate a summary of all results and compare with paper"""
     print("\n" + "="*60)
@@ -232,6 +251,7 @@ if __name__ == "__main__":
         run_experiment_3_ood,
         run_experiment_4_ablation,
         run_experiment_5_kernel_benchmark,
+        run_experiment_new_domains,  # New Multimodal Tasks
         # run_experiment_2_topology # Skipping topology by default as it's very slow
     ]
     
