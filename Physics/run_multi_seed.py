@@ -11,6 +11,7 @@ import numpy as np
 import json
 from datetime import datetime
 import sys
+import os
 
 sys.path.append('..')
 
@@ -80,6 +81,13 @@ def train_and_evaluate(model, X_train, Y_train, test_data, epochs=30, lr=1e-3):
         seed_data = test_data[:, :1]
         ground_truth = test_data[:, 1:1+rollout_steps]
         
+        # Measure Latency (Single forward pass)
+        # Warmup
+        _ = model(seed_data)
+        t0 = time.time()
+        _ = model(seed_data)
+        latency = (time.time() - t0) * 1000
+        
         preds = autoregressive_rollout(model, seed_data, steps=rollout_steps)
         mse = loss_fn(preds, ground_truth).item()
         
@@ -88,7 +96,7 @@ def train_and_evaluate(model, X_train, Y_train, test_data, epochs=30, lr=1e-3):
         drift = torch.mean(torch.abs(e_end - e_start)).item()
         drift_pct = (drift / (torch.mean(torch.abs(e_start)).item() + 1e-6)) * 100
     
-    return {"mse": float(mse), "energy_drift_pct": float(drift_pct)}
+    return {"mse": float(mse), "energy_drift_pct": float(drift_pct), "latency": float(latency)}
 
 def run_single_seed(seed, device='cpu'):
     """Run full experiment with one seed"""
@@ -125,7 +133,7 @@ def run_single_seed(seed, device='cpu'):
         try:
             metrics = train_and_evaluate(model, X_train, Y_train, test_data, epochs=30)
             results[name] = metrics
-            print(f"MSE={metrics['mse']:.4f}, Drift={metrics['energy_drift_pct']:.1f}%")
+            print(f"MSE={metrics['mse']:.4f}, Drift={metrics['energy_drift_pct']:.1f}%, Latency={metrics['latency']:.2f}ms")
         except Exception as e:
             print(f"FAILED: {e}")
             results[name] = {"error": str(e)}
@@ -140,6 +148,8 @@ def main():
     print("to get statistically valid results with error bars.\n")
     
     seeds = [42, 123, 456, 789, 1011]  # 5 seeds (industry standard)
+    if os.environ.get("VERSOR_QUICK_TEST"):
+        seeds = [42]
     device = "cpu"
     
     all_results = {}
@@ -159,11 +169,13 @@ def main():
     for model in models:
         mses = []
         drifts = []
+        latencies = []
         
         for seed_key in all_results:
             if model in all_results[seed_key] and "error" not in all_results[seed_key][model]:
                 mses.append(all_results[seed_key][model]["mse"])
                 drifts.append(all_results[seed_key][model]["energy_drift_pct"])
+                latencies.append(all_results[seed_key][model]["latency"])
         
         if mses:
             stats[model] = {
@@ -173,6 +185,7 @@ def main():
                 "mse_max": float(np.max(mses)),
                 "drift_mean": float(np.mean(drifts)),
                 "drift_std": float(np.std(drifts)),
+                "latency_mean": float(np.mean(latencies)),
                 "n_runs": len(mses)
             }
     
@@ -185,7 +198,8 @@ def main():
             s = stats[model]
             mse_str = f"{s['mse_mean']:.4f} ± {s['mse_std']:.4f}"
             drift_str = f"{s['drift_mean']:.1f} ± {s['drift_std']:.1f}"
-            print(f"{model:<15} | {mse_str:<20} | {drift_str:<20}")
+            lat_str = f"{s['latency_mean']:.2f}"
+            print(f"{model:<15} | {mse_str:<20} | {drift_str:<20} | {lat_str:<10}")
     
     # Statistical significance test
     print("\n" + "="*60)

@@ -18,6 +18,18 @@ except ImportError:
 
 from Model.model import VersorBlock, normalize_cl41, VersorLinear, VersorActivation
 
+# Try to import C++ extension
+try:
+    if os.environ.get("VERSOR_NO_CPP"):
+        raise ImportError("Forced Python Fallback")
+    sys.path.append(os.path.join(os.path.dirname(__file__), 'cpp'))
+    import versor_cpp
+    HAS_CPP_CORE = True
+    print("Versor C++ Core Accelerated: ON")
+except ImportError as e:
+    HAS_CPP_CORE = False
+    print(f"Versor C++ Core Accelerated: OFF (Using Python Fallback). Error: {e}")
+
 class StandardTransformer(nn.Module):
     def __init__(self, input_dim=6, n_particles=5, d_model=128, n_head=4, n_layers=2):
         super().__init__()
@@ -76,6 +88,35 @@ class VersorRotorRNN(nn.Module):
         # (B, S, N, D) -> (B, S, N, Hidden, 32)
         x_embs = self.proj_in(x).reshape(B, S, N, self.hidden_channels, 32)
         
+        if HAS_CPP_CORE:
+            # C++ Core Implementation (Recursive Rotor Accumulator)
+            # Parallelized O(L) scan on CPU/extension
+            # x_embs: (B, S, N, Hidden, 32)
+            
+            # Ensure CPU contiguity
+            x_cpu = x_embs.detach().cpu()
+            
+            # Run C++ Core
+            # Returns (B, S, N, H, 32)
+            psi_seq = versor_cpp.rra_scan_forward(x_cpu)
+            
+            # Move back to original device
+            psi_seq = psi_seq.to(x.device)
+            
+            # Parallel Output Projection
+            # Flatten B and S: (B*S, N, H, 32)
+            B, S, N, H, _ = x_embs.shape
+            psi_flat = psi_seq.reshape(B*S, N, -1) # (B*S, N, H*32)
+            
+            # Linear Projection: (B*S, N, D)
+            pred_delta = self.proj_out(psi_flat)
+            
+            # Residual Connection
+            outputs = x.reshape(B*S, N, D) + pred_delta
+            
+            return outputs.reshape(B, S, N, D)
+
+        # Fallback Python Implementation
         for t in range(S):
             # 1. Delta-Rotor generator for each particle
             u_t = x_embs[:, t] # (B, N, Hidden, 32)
