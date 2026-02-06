@@ -65,7 +65,7 @@ class GATrAdapter(nn.Module):
             in_s_channels=None,
             out_s_channels=None,
             hidden_mv_channels=16,
-            hidden_s_channels=32,
+            hidden_s_channels=128,
             num_blocks=10, 
             attention=SelfAttentionConfig(), 
             mlp=MLPConfig()
@@ -144,6 +144,8 @@ def run_gatr_experiment():
                 loss.backward()
                 nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
+            if epoch % 5 == 0 or epoch == EPOCHS - 1:
+                print(f"  Epoch {epoch}/{EPOCHS}, Loss: {loss.item():.4f}")
         
         # Evaluate
         model.eval()

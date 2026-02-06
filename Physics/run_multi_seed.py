@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 import sys
 import os
+import time
 
 sys.path.append('..')
 
@@ -71,6 +72,8 @@ def train_and_evaluate(model, X_train, Y_train, test_data, epochs=30, lr=1e-3):
         loss = loss_fn(pred, Y_train)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        if epoch % 5 == 0:
+            print(f"      [Epoch {epoch}/{epochs}] Loss: {loss.item():.6f}", flush=True)
         optimizer.step()
     
     # Evaluation (Autoregressive Rollout)
@@ -117,11 +120,11 @@ def run_single_seed(seed, device='cpu'):
     # Models
     models = {
         "Transformer": StandardTransformer(n_particles=5).to(device),
-        "Versor": VersorRotorRNN().to(device),
+        "Versor": VersorRotorRNN(n_particles=5).to(device),
         "GNS": GraphNetworkSimulator(n_particles=5).to(device),
         "HNN": HamiltonianNN(n_particles=5).to(device),
         "Mamba": MambaSimulator(n_particles=5).to(device),
-        "Versor-4ch": MultiChannelVersor(n_particles=5, n_channels=4).to(device),
+        "Versor-Multi": MultiChannelVersor(n_particles=5, n_channels=16, n_heads=4).to(device),
         "Ham-Versor": HamiltonianVersorNN(n_particles=5).to(device),
         "EGNN": EquivariantGNN(n_particles=5).to(device)
     }
@@ -147,9 +150,7 @@ def main():
     print("This will run 5 experiments with different random seeds")
     print("to get statistically valid results with error bars.\n")
     
-    seeds = [42, 123, 456, 789, 1011]  # 5 seeds (industry standard)
-    if os.environ.get("VERSOR_QUICK_TEST"):
-        seeds = [42]
+    seeds = [42, 123, 456, 789, 1011]
     device = "cpu"
     
     all_results = {}
@@ -163,7 +164,7 @@ def main():
     print("STATISTICAL ANALYSIS")
     print("="*60)
     
-    models = ["Transformer", "Versor", "GNS", "HNN", "Versor-4ch", "Ham-Versor", "EGNN"]
+    models = ["Transformer", "Versor", "GNS", "HNN", "Versor-Multi", "Ham-Versor", "EGNN"]
     stats = {}
     
     for model in models:
@@ -251,13 +252,14 @@ def main():
             "n_samples": 200,
             "n_steps": 100,
             "epochs": 30,
-            "device": device
+            "device": device,
+            "note": "Fair Comparison: Versor-Multi uses 16 channels and Clifford-equivariant activation/mixing to match baseline capacity."
         }
     }
     
     # Create results directory if it doesn't exist
     os.makedirs('results', exist_ok=True)
-    filename = f"results/multi_seed_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"results/multi-channel-stats.json"
     with open(filename, 'w') as f:
         json.dump(output, f, indent=2)
     
@@ -282,12 +284,12 @@ def main():
         "GNS": "0.47M", 
         "HNN": "0.26M", 
         "Versor": "0.20M", 
-        "Versor-4ch": "0.80M", 
+        "Versor-Multi": "0.85M", 
         "Ham-Versor": "0.25M",
         "EGNN": "0.03M"
     }
     
-    for model in ["Transformer", "GNS", "HNN", "Versor", "Versor-4ch", "Ham-Versor", "EGNN"]:
+    for model in ["Transformer", "GNS", "HNN", "Versor", "Versor-Multi", "Ham-Versor", "EGNN"]:
         if model in stats:
             s = stats[model]
             params = params_table.get(model, "??")
